@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <cstdint>
 #include "disk.h"
 
@@ -29,6 +30,7 @@ private:
     Disk disk;
     // size of a FAT entry is 2 bytes
     int16_t fat[BLOCK_SIZE/2];
+    std::vector<dir_entry*> entries;
 
 public:
     FS();
@@ -42,6 +44,10 @@ public:
     int cat(std::string filepath);
     // ls lists the content in the currect directory (files and sub-directories)
     int ls();
+
+    int getFreeIndex();
+
+    void testDisk();
 
     // cp <sourcepath> <destpath> makes an exact copy of the file
     // <sourcepath> to a new file <destpath>

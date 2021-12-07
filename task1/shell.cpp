@@ -92,6 +92,10 @@ Shell::run()
             }
         }
 
+        else if (cmd == "test") {
+            filesystem.testDisk();
+        }
+
         else if (cmd == "cat") {
             if (cmd_line.size() != 2) {
                 std::cout << "Usage: cat <file>\n";
