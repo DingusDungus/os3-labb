@@ -31,6 +31,10 @@ private:
     // size of a FAT entry is 2 bytes
     int16_t fat[BLOCK_SIZE/2];
     std::vector<dir_entry*> entries;
+    void updateFatRoot();
+    void readInFatRoot();
+    uint16_t fatDiskIndexCalc(uint8_t num1, uint8_t num2);
+    void fatDiskIndexCalc(uint16_t num, uint8_t * result);
 
 public:
     FS();

@@ -4,20 +4,69 @@
 FS::FS()
 {
     std::cout << "FS::FS()... Creating file system\n";
+    readInFatRoot();
 }
 
 FS::~FS()
 {
+    updateFatRoot();
+}
+
+int getSecondNum(uint16_t num)
+{
+    int i;
+    for (i = 0;((i + 1) * 255) < num;i++);
+    return i;
+}
+
+void FS::fatDiskIndexCalc(uint16_t num, uint8_t *result)
+{
+
+    result[0] = getSecondNum(num);
+    result[1] = num % 255;
+}
+
+uint16_t FS::fatDiskIndexCalc(uint8_t num1, uint8_t num2)
+{
+    return (255 * num1 + num2);
+}
+
+void FS::updateFatRoot()
+{
+    uint8_t block[4096];
+    uint8_t indexes[2];
+    disk.write(0, block);
+    disk.write(1, block);
+    for (int i = 0;i < BLOCK_SIZE/2;i += 2)
+    {
+        fatDiskIndexCalc(fat[i], indexes);
+        block[i] = indexes[0];
+        block[i + 1] = indexes[1];
+    }
+    disk.write(1, block);
+}
+
+void FS::readInFatRoot()
+{   
+    uint8_t block[4096];
+    disk.read(1, block);
+    for (int i = 0;i < BLOCK_SIZE/2;i += 2)
+    {
+        fat[i] = fatDiskIndexCalc(block[i], block[i + 1]);
+    }
 }
 
 // formats the disk, i.e., creates an empty file system
 int FS::format()
 {
-    fat[0] = -2;
+    uint8_t block[4096];
+    disk.write(0, block);
+    disk.write(1, block);
+    fat[0] = -2; //-2 taken, EOF
     fat[1] = -2;
-    for (int i = 2;i < BLOCK_SIZE/2;i++)
+    for (int i = 2; i < BLOCK_SIZE / 2; i++)
     {
-        fat[i] = -1;
+        fat[i] = -1; //-1 free
     }
     dir_entry *rootDir = new dir_entry;
     rootDir->file_name[0] = '/';
@@ -27,24 +76,14 @@ int FS::format()
     rootDir->access_rights = 0x06;
     entries.push_back(rootDir);
 
-    /*
-    uint8_t fatBlock[4096];
-    for (int i = 3;i < 4096;i++)
-    {
-        fat[i] = 0;
-    }
-    fatBlock[0] = -1;
-    fatBlock[2] = -1;
-    disk.write(1, fatBlock);
-    */
-    
+    updateFatRoot();
 
     return 0;
 }
 
 int FS::getFreeIndex()
 {
-    for (int i = 0;i < BLOCK_SIZE/2;i++)
+    for (int i = 0; i < BLOCK_SIZE / 2; i++)
     {
         if (fat[i] == -1)
         {
@@ -57,50 +96,75 @@ int FS::getFreeIndex()
 
 void FS::testDisk()
 {
-    uint8_t value[4096];
     uint8_t recieve[4096];
-    value[0] = 255;
-    disk.write(0, value);
-    disk.read(0, recieve);
-    std::cout << recieve[0] << std::endl;
-    std::cout << recieve[0] << std::endl;
-}   
+    disk.read(entries[0]->first_blk, recieve);
+    for (int i = 0; i < 4096 && recieve[i] != '\0'; i++)
+    {
+        std::cout << recieve[i];
+    }
+    std::cout << std::endl;
+}
 
 // create <filepath> creates a new file on the disk, the data content is
 // written on the following rows (ended with an empty row)
 int FS::create(std::string filepath)
 {
+    std::cin.clear();
     std::cout << "FS::create(" << filepath << ")\n";
     std::string contents;
     std::string row = " ";
-    uint8_t block[4096];
-    int pred = 0;
-    std::cin >> row;
-    while (true)
-    {  
+    uint8_t block[10][4096];
+    int firstFatIndex = 0;
+    int pred = -2;
+    for (int i = 0;i < 5;i++)
+    {
+        std::cin >> row;
+        row.push_back('\n');
         contents.append(row);
     }
     int count = 0;
-    for (int i = 0;i < contents.size();i++)
+    int index = 0;
+    for (int i = 0; i < contents.size(); i++)
     {
         if (count >= 4096)
         {
-            int fatIndex = getFreeIndex();
-            if (pred != 0)
-            {
-                fat[fatIndex] = pred;
-            }
-            pred = fatIndex;
             count = 0;
-            disk.write(fatIndex, block);
-            for (int j = 0;j < 4096;j++)
+            for (int j = 0; j < 4096; j++)
             {
-                block[j] = 0;
+                block[0][j] = 0;
             }
+            std::cout << "Increased index\n";
+            index++;
         }
-        block[count] = contents[i];
+        block[0][count] = contents[i];
         count++;
     }
+    for (int i = 0; i <= index; i++)
+    {
+        int fatIndex = getFreeIndex();
+        if (pred != -2)
+        {
+            fat[pred] = fatIndex;
+        }
+        else
+        {
+            firstFatIndex = fatIndex;
+            fat[fatIndex] = pred;
+        }
+        pred = fatIndex;
+        disk.write(fatIndex, block[i]);
+    }
+
+    dir_entry *newEntry = new dir_entry;
+    for (int i = 0; i < 56 && i < filepath.size(); i++)
+    {
+        newEntry->file_name[i] = filepath[i];
+    }
+    newEntry->first_blk = firstFatIndex;
+    newEntry->size = contents.size();
+    newEntry->access_rights = 0x06;
+    newEntry->type = 0;
+    entries.push_back(newEntry);
 
     return 0;
 }
