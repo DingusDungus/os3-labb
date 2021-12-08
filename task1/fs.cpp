@@ -37,7 +37,7 @@ int FS::format()
     fatBlock[2] = -1;
     disk.write(1, fatBlock);
     */
-    
+
 
     return 0;
 }
@@ -64,7 +64,7 @@ void FS::testDisk()
     disk.read(0, recieve);
     std::cout << recieve[0] << std::endl;
     std::cout << recieve[0] << std::endl;
-}   
+}
 
 // create <filepath> creates a new file on the disk, the data content is
 // written on the following rows (ended with an empty row)
@@ -77,7 +77,7 @@ int FS::create(std::string filepath)
     int pred = 0;
     std::cin >> row;
     while (true)
-    {  
+    {
         contents.append(row);
     }
     int count = 0;
