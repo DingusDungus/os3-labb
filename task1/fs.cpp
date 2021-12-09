@@ -76,21 +76,7 @@ int FS::format()
     rootDir->access_rights = 0x06;
     entries.push_back(rootDir);
 
-<<<<<<< HEAD
     updateFatRoot();
-=======
-    /*
-    uint8_t fatBlock[4096];
-    for (int i = 3;i < 4096;i++)
-    {
-        fat[i] = 0;
-    }
-    fatBlock[0] = -1;
-    fatBlock[2] = -1;
-    disk.write(1, fatBlock);
-    */
-
->>>>>>> db0d1f4a3dd5ef9aca6c856ecc150ca708dd6bf1
 
     return 0;
 }
@@ -111,20 +97,12 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     uint8_t recieve[4096];
-<<<<<<< HEAD
     disk.read(entries[0]->first_blk, recieve);
     for (int i = 0; i < 4096 && recieve[i] != '\0'; i++)
     {
         std::cout << recieve[i];
     }
     std::cout << std::endl;
-=======
-    value[0] = 255;
-    disk.write(0, value);
-    disk.read(0, recieve);
-    std::cout << recieve[0] << std::endl;
-    std::cout << recieve[0] << std::endl;
->>>>>>> db0d1f4a3dd5ef9aca6c856ecc150ca708dd6bf1
 }
 
 // create <filepath> creates a new file on the disk, the data content is
@@ -135,7 +113,6 @@ int FS::create(std::string filepath)
     std::cout << "FS::create(" << filepath << ")\n";
     std::string contents;
     std::string row = " ";
-<<<<<<< HEAD
     uint8_t block[10][4096];
     int firstFatIndex = 0;
     int pred = -2;
@@ -143,13 +120,6 @@ int FS::create(std::string filepath)
     {
         std::cin >> row;
         row.push_back('\n');
-=======
-    uint8_t block[4096];
-    int pred = 0;
-    std::cin >> row;
-    while (true)
-    {
->>>>>>> db0d1f4a3dd5ef9aca6c856ecc150ca708dd6bf1
         contents.append(row);
     }
     int count = 0;
