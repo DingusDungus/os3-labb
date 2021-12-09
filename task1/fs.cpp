@@ -19,6 +19,11 @@ int getSecondNum(uint16_t num)
     return i;
 }
 
+void convert32to8(uint32_t num, uint8_t *result)
+{
+    result = (uint8_t *)&num;
+}
+
 void FS::fatDiskIndexCalc(uint16_t num, uint8_t *result)
 {
 
@@ -47,7 +52,7 @@ void FS::updateFatRoot()
 }
 
 void FS::readInFatRoot()
-{   
+{
     uint8_t block[4096];
     disk.read(1, block);
     for (int i = 0;i < BLOCK_SIZE/2;i += 2)
@@ -116,9 +121,12 @@ int FS::create(std::string filepath)
     uint8_t block[10][4096];
     int firstFatIndex = 0;
     int pred = -2;
-    for (int i = 0;i < 5;i++)
+    while (true)
     {
-        std::cin >> row;
+        std::getline(std::cin, row);
+        if (row == ""){
+            break;
+        }
         row.push_back('\n');
         contents.append(row);
     }
