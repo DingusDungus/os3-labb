@@ -12,15 +12,21 @@ FS::~FS()
     updateFatRoot();
 }
 
+int getSecondNum(uint16_t num)
+{
+    int i;
+    for (i = 0; ((i + 1) * 255) < num; i++)
+        ;
+    return i;
+}
+
 uint32_t convert8to32(uint8_t *result)
 {
-    //Converts a set of 8 bit integers into one whole 32 bit integer
     return (result[0] << 24) | (result[1] << 16) | (result[2] << 8) | result[3];
 }
 
 void convert32to8(uint32_t num, uint8_t *result)
 {
-    //Converts a 30 bit integer to 4 8 bit integers
     result[0] = (num & 0xff000000UL) >> 24;
     result[1] = (num & 0x00ff0000UL) >> 16;
     result[2] = (num & 0x0000ff00UL) >> 8;
@@ -29,21 +35,18 @@ void convert32to8(uint32_t num, uint8_t *result)
 
 void FS::convert16to8(uint16_t num, uint8_t *result)
 {
-    //Converts a 16 bit integer into a set of 8 bit integers
-    result[0] = *((uint8_t *)&(num) + 1);
-    result[1] = *((uint8_t *)&(num) + 0);
+    result[0] = *((uint8_t*)&(num)+1);
+    result[1] = *((uint8_t*)&(num)+0);
 }
 
 uint16_t FS::convert8to16(uint8_t num1, uint8_t num2)
 {
-    //Converts a set of 8 bit integers into one 16 bit integer
     uint16_t returnVal = (num1 << 8) | num2;
     return returnVal;
 }
 
 void FS::updateFatRoot()
 {
-    //updates both the FAT and root block on the disk so they stay up to date
     uint8_t block[4096];
     uint8_t bit16[2];
     uint8_t bit32[4];
@@ -52,7 +55,7 @@ void FS::updateFatRoot()
     int x = 0;
     // take each FAT array entry and split it into two 8bit (1 byte)
     // entries which are placed in the block at index x and x+1
-    for (int i = 0; i < BLOCK_SIZE / 2; i++)
+    for (int i = 0; i < BLOCK_SIZE / 2;i++)
     {
         convert16to8(fat[i], bit16);
         block[x] = bit16[0];
@@ -122,13 +125,13 @@ void FS::readInFatRoot()
     // take 2 bytes each iteration and converting them
     // too a 16bit (2 byte) INT and adding it to the FAT array
     // until we have read the whole FAT from file
-    for (int i = 0; i < BLOCK_SIZE / 2; i++)
+    for (int i = 0; i < BLOCK_SIZE / 2;i++)
     {
         fat[i] = convert8to16(block[x], block[x + 1]);
         x += 2;
     }
     // reset the block array
-    for (int i = 0; i < 4096; i++)
+    for (int i = 0;i < 4096;i++)
     {
         block[i] = 0;
     }
@@ -139,12 +142,13 @@ void FS::readInFatRoot()
 
     // loop through dir_entry block until we reach end '\0'
     // jumps 64 at each iteration since size of dir_entry is 64 bytes.
-    for (int i = 0; i < 4096 && block[i] != '\0'; i += 64)
+    for (int i = 0;i < 4096 && block[i] != '\0';i += 64)
     {
         // reset x to point to the first byte of the next dir entry
         int x = i;
         // create a new dir
         newDir = new dir_entry;
+
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
         for (int j = 0;j < 56;j++)
@@ -210,7 +214,6 @@ int FS::format()
 // return first free block index
 int FS::getFreeIndex()
 {
-    //Returns first index found which is free on the FAT
     for (int i = 0; i < BLOCK_SIZE / 2; i++)
     {
         if (fat[i] == FAT_FREE)
@@ -224,17 +227,16 @@ int FS::getFreeIndex()
 
 void FS::testDisk()
 {
-    //Testing func for the devs
     for (int i = 0; i < entries.size(); i++)
     {
         std::cout << (entries[i]->file_name + '\0') << std::endl;
     }
     uint8_t block[4096];
     disk.read(1, block);
-    for (int i = 0; i < 4096 && block[i] != '\0'; i++)
+    for (int i = 0;i < 4096 && block[i] != '\0';i++)
     {
     }
-    for (int i = 0; i < 10; i++)
+    for (int i = 0;i < 10;i++)
     {
         std::cout << fat[i] << ',';
     }
@@ -333,8 +335,7 @@ int FS::cat(std::string filepath)
     //Tries to find file in rootblock
     uint16_t first_blk = 0;
     uint8_t block[4096];
-    int dirEntryIndex = 0;
-    for (int i = 0; i < entries.size(); i++)
+    for (int i = 0;i < entries.size();i++)
     {
         if (entries[i]->file_name == filepath)
         {
@@ -348,7 +349,7 @@ int FS::cat(std::string filepath)
     {
         //std::cout << "fatIndex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        for (int i = 0; i < 4096 && i < entries[dirEntryIndex]->size; i++)
+        for (int i = 0;i < 4096 && block[i] != '\0';i++)
         {
             std::cout << block[i];
         }
@@ -362,7 +363,7 @@ int FS::ls()
 {
     std::cout << "FS::ls()\n";
     std::cout << "name\tsize\n";
-    for (int i = 0; i < entries.size(); i++)
+    for (int i = 0;i < entries.size();i++)
     {
         std::cout << entries[i]->file_name << '\t' << entries[i]->size << '\n';
     }
