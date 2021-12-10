@@ -322,6 +322,11 @@ int FS::cat(std::string filepath)
 int FS::ls()
 {
     std::cout << "FS::ls()\n";
+    std::cout << "name\tsize\n";
+    for (int i = 0;i < entries.size();i++)
+    {
+        std::cout << entries[i]->file_name << '\t' << entries[i]->size << '\n';
+    }
     return 0;
 }
 
