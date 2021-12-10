@@ -146,11 +146,11 @@ int FS::format()
     uint8_t block[4096];
     disk.write(0, block);
     disk.write(1, block);
-    fat[0] = -2; //-2 taken, EOF
-    fat[1] = -2;
+    fat[ROOT_BLOCK] = FAT_EOF;
+    fat[FAT_BLOCK] = FAT_EOF;
     for (int i = 2; i < BLOCK_SIZE / 2; i++)
     {
-        fat[i] = -1; //-1 free
+        fat[i] = FAT_FREE; 
     }
     entries.clear();
     dir_entry *rootDir = new dir_entry;
@@ -170,7 +170,7 @@ int FS::getFreeIndex()
 {
     for (int i = 0; i < BLOCK_SIZE / 2; i++)
     {
-        if (fat[i] == -1)
+        if (fat[i] == FAT_FREE)
         {
             return i;
         }
@@ -206,7 +206,7 @@ int FS::create(std::string filepath)
     std::string row = " ";
     uint8_t block[4096];
     int firstFatIndex = 0;
-    int pred = -2;
+    int pred = FAT_EOF;
     while (true)
     {
         std::getline(std::cin, row);
@@ -224,7 +224,7 @@ int FS::create(std::string filepath)
         if (count >= 4096)
         {
             fatIndex = getFreeIndex();
-            if (pred != -2)
+            if (pred != FAT_EOF)
             {
                 fat[pred] = fatIndex;
             }
@@ -233,7 +233,7 @@ int FS::create(std::string filepath)
                 firstFatIndex = fatIndex;
                 fat[fatIndex] = pred;
             }
-            pred = fatIndex;
+            fat[fatIndex] = FAT_EOF;
             disk.write(fatIndex, block);
             for (int j = 0; j < 4096; j++)
             {
@@ -246,7 +246,7 @@ int FS::create(std::string filepath)
     }
 
     fatIndex = getFreeIndex();
-    if (pred != -2)
+    if (pred != FAT_EOF)
     {
         fat[pred] = fatIndex;
     }
@@ -280,6 +280,41 @@ int FS::create(std::string filepath)
 int FS::cat(std::string filepath)
 {
     std::cout << "FS::cat(" << filepath << ")\n";
+    //Tries to find file in rootblock
+
+    bool isEqual = true;
+    uint16_t first_blk = 0;
+    uint8_t block[4096];
+    for (int i = 0;i < entries.size();i++)
+    {
+        for (int j = 0;entries[i]->file_name[j] != '\0' && j < 56;j++)
+        {
+            if (entries[i]->file_name[j] != filepath[j])
+            {
+                isEqual = false;
+                break;
+            }
+        }
+        if (isEqual)
+        {
+            first_blk = entries[i]->first_blk;
+            break;
+        }
+        else
+        {
+            isEqual = true;
+        }
+    }
+    int fatIndex = first_blk;
+    while (fatIndex != FAT_EOF && first_blk != 0)
+    {
+        disk.read(fatIndex, block);
+        for (int i = 0;i < 4096 && block[i] != '\0';i++)
+        {
+            std::cout << block[i];
+        }
+        fatIndex = fat[fatIndex];
+    }
     return 0;
 }
 
