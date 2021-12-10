@@ -249,7 +249,7 @@ int FS::create(std::string filepath)
     std::cin.clear();
     std::cout << "FS::create(" << filepath << ")\n";
     std::string contents;
-    std::string row = " ";
+    std::string row = "";
     uint8_t block[4096];
     int firstFatIndex = 0;
     int prevIndex = FAT_EOF;
@@ -267,6 +267,7 @@ int FS::create(std::string filepath)
         contents.append(row);
     }
 
+    // start writing blocks
     int count = 0;
     int fatIndex = 0;
     fatIndex = getFreeIndex();
@@ -280,6 +281,9 @@ int FS::create(std::string filepath)
             disk.write(fatIndex, block);
             // save previous fatIndex
             prevIndex = fatIndex;
+            // set prevIndex as EOF temporarily so
+            // so getFreeIndex doesnt choose it.
+            fat[prevIndex] = FAT_EOF;
             // get a new free block index
             fatIndex = getFreeIndex();
             // set prev FAT index next block as current fatIndex
@@ -292,6 +296,8 @@ int FS::create(std::string filepath)
             // reset count so we can continue
             // writing the remaining file contents to the reset block
             count = 0;
+            //std::cout << "fatIndex: " << fatIndex << std::endl;
+            //std::cout << "prevIndex: " << prevIndex << std::endl;
         }
         // add each char from file contents into block.
         block[count] = contents[i];
@@ -327,32 +333,21 @@ int FS::cat(std::string filepath)
     std::cout << "FS::cat(" << filepath << ")\n";
 
     //Tries to find file in rootblock
-    bool isEqual = true;
     uint16_t first_blk = 0;
     uint8_t block[4096];
     for (int i = 0;i < entries.size();i++)
     {
-        for (int j = 0;entries[i]->file_name[j] != '\0' && j < 56;j++)
-        {
-            if (entries[i]->file_name[j] != filepath[j])
-            {
-                isEqual = false;
-                break;
-            }
-        }
-        if (isEqual)
+        if (entries[i]->file_name == filepath)
         {
             first_blk = entries[i]->first_blk;
+            //std::cout << "first_blk: " << first_blk << std::endl;
             break;
-        }
-        else
-        {
-            isEqual = true;
         }
     }
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
+        //std::cout << "fatIndex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
         for (int i = 0;i < 4096 && block[i] != '\0';i++)
         {
