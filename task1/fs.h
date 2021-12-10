@@ -33,8 +33,8 @@ private:
     std::vector<dir_entry*> entries;
     void updateFatRoot();
     void readInFatRoot();
-    uint16_t fatDiskIndexCalc(uint8_t num1, uint8_t num2);
-    void fatDiskIndexCalc(uint16_t num, uint8_t * result);
+    uint16_t convert8to16(uint8_t num1, uint8_t num2);
+    void convert16to8(uint16_t num, uint8_t * result);
 
 public:
     FS();
