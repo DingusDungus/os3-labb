@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# diskfile
+diskfile.bin
+
 # Compiled Object files
 *.slo
 *.lo
