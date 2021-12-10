@@ -35,14 +35,14 @@ void convert32to8(uint32_t num, uint8_t *result)
 
 void FS::convert16to8(uint16_t num, uint8_t *result)
 {
-
-    result[0] = getSecondNum(num);
-    result[1] = num % 255;
+    result[0] = *((uint8_t*)&(num)+1);
+    result[1] = *((uint8_t*)&(num)+0);
 }
 
 uint16_t FS::convert8to16(uint8_t num1, uint8_t num2)
 {
-    return (255 * num1 + num2);
+    uint16_t returnVal = (num1 << 8) | num2;
+    return returnVal;
 }
 
 void FS::updateFatRoot()
@@ -52,11 +52,13 @@ void FS::updateFatRoot()
     uint8_t bit32[4];
     disk.write(0, block);
     disk.write(1, block);
-    for (int i = 0; i < BLOCK_SIZE / 2; i += 2)
+    int x = 0;
+    for (int i = 0; i < BLOCK_SIZE / 2;i++)
     {
         convert16to8(fat[i], bit16);
-        block[i] = bit16[0];
-        block[i + 1] = bit16[1];
+        block[x] = bit16[0];
+        block[x + 1] = bit16[1];
+        x += 2;
     }
     disk.write(1, block);
     for (int i = 0; i < 4096; i++)
@@ -64,7 +66,7 @@ void FS::updateFatRoot()
         block[i] = 0;
     }
 
-    int x = 0;
+    x = 0;
 
     for (int i = 0; i < entries.size(); i++)
     {
@@ -97,9 +99,11 @@ void FS::readInFatRoot()
 {
     uint8_t block[4096];
     disk.read(1, block);
-    for (int i = 0; i < BLOCK_SIZE / 2; i += 2)
+    int x = 0;
+    for (int i = 0; i < BLOCK_SIZE / 2;i++)
     {
-        fat[i] = convert8to16(block[i], block[i + 1]);
+        fat[i] = convert8to16(block[x], block[x + 1]);
+        x += 2;
     }
     for (int i = 0;i < 4096;i++)
     {
@@ -132,6 +136,7 @@ void FS::readInFatRoot()
         newDir->type = block[x];
         x++;
         newDir->access_rights = block[x];
+        entries.push_back(newDir);
     }
 }
 
@@ -147,6 +152,7 @@ int FS::format()
     {
         fat[i] = -1; //-1 free
     }
+    entries.clear();
     dir_entry *rootDir = new dir_entry;
     rootDir->file_name[0] = '/';
     rootDir->first_blk = 0;
@@ -180,10 +186,13 @@ void FS::testDisk()
         std::cout << (entries[i]->file_name + '\0') << std::endl;
     }
     uint8_t block[4096];
-    disk.read(10, block);
+    disk.read(1, block);
     for (int i = 0;i < 4096 && block[i] != '\0';i++)
     {
-        std::cout << block[i];
+    }
+    for (int i = 0;i < 10;i++)
+    {
+        std::cout << fat[i] << ',';
     }
 }
 
