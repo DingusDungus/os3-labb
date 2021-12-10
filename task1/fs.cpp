@@ -383,23 +383,11 @@ int FS::cp(std::string sourcepath, std::string destpath)
     int dirEntryIndex = 0;
     for (int i = 0; i < entries.size(); i++)
     {
-        for (int j = 0; entries[i]->file_name[j] != '\0' && j < 56; j++)
-        {
-            if (entries[i]->file_name[j] != sourcepath[j])
-            {
-                isEqual = false;
-                break;
-            }
-        }
-        if (isEqual)
+        if (entries[i]->file_name == sourcepath)
         {
             first_blk = entries[i]->first_blk;
-            dirEntryIndex = i;
+            //std::cout << "first_blk: " << first_blk << std::endl;
             break;
-        }
-        else
-        {
-            isEqual = true;
         }
     }
     int fatIndex = first_blk;
