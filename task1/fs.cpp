@@ -53,6 +53,8 @@ void FS::updateFatRoot()
     disk.write(0, block);
     disk.write(1, block);
     int x = 0;
+    // take each FAT array entry and split it into two 8bit (1 byte)
+    // entries which are placed in the block at index x and x+1
     for (int i = 0; i < BLOCK_SIZE / 2;i++)
     {
         convert16to8(fat[i], bit16);
@@ -60,58 +62,86 @@ void FS::updateFatRoot()
         block[x + 1] = bit16[1];
         x += 2;
     }
+    // write the FAT block
     disk.write(1, block);
+
+    // reset the block array.
     for (int i = 0; i < 4096; i++)
     {
         block[i] = 0;
     }
 
+    // reset x-counter
     x = 0;
 
+    // size of a dir_entry is 64 bytes
     for (int i = 0; i < entries.size(); i++)
     {
+        // loop through file_name char array
+        // adding each char into the block array
         for (int j = 0; j < 56; j++)
         {
             block[x] = entries[i]->file_name[j];
             x++;
         }
+        // convert one 32 bit (4 bytes) INT to four 8bit (1 byte) INTs
+        // saved in var "bit32"
         convert32to8(entries[i]->size, bit32);
+        // add each of the four 8bit (1 byte) INTs to the block.
         for (int j = 0; j < 4; j++)
         {
             block[x] = bit32[j];
             x++;
         }
+        // convert 16bit (2 byte) first_blk into two
+        // 8bit (1 byte) INTs
         convert16to8(entries[i]->first_blk, bit16);
+        // add each of the two 8bit (1 byte) INTs to the block.
         for (int j = 0; j < 2; j++)
         {
             block[x] = bit16[j];
             x++;
         }
+        //add the type which is already a 8bit (1 byte) INT to the block.
         block[x] = entries[i]->type;
         x++;
+        //add the access_rights which is already a 8bit (1 byte) INT to the block.
         block[x] = entries[i]->access_rights;
         x++;
     }
+    // write the dir_entry block
     disk.write(0, block);
 }
 
 void FS::readInFatRoot()
 {
     uint8_t block[4096];
+    // read the FAT block into block array
     disk.read(1, block);
+    // counter
     int x = 0;
+
+    // loop through half the size of the FAT block
+    // take 2 bytes each iteration and converting them
+    // too a 16bit (2 byte) INT and adding it to the FAT array
+    // until we have read the whole FAT from file
     for (int i = 0; i < BLOCK_SIZE / 2;i++)
     {
         fat[i] = convert8to16(block[x], block[x + 1]);
         x += 2;
     }
+    // reset the block array
     for (int i = 0;i < 4096;i++)
     {
         block[i] = 0;
     }
+    // read the dir_entry block into block array
     disk.read(0, block);
     dir_entry *newDir;
     uint8_t result[4];
+
+    // loop through dir_entry block until we reach end '\0'
+    // jumps 64 at each iteration since size of dir_entry is 64 bytes.
     for (int i = 0;i < 4096 && block[i] != '\0';i += 64)
     {
         int x = i;

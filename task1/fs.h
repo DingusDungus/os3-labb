@@ -30,6 +30,7 @@ private:
     Disk disk;
     // size of a FAT entry is 2 bytes
     int16_t fat[BLOCK_SIZE/2];
+    // size of a dir_entry is 64 bytes
     std::vector<dir_entry*> entries;
     void updateFatRoot();
     void readInFatRoot();
