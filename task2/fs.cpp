@@ -508,6 +508,18 @@ int FS::cp(std::string sourcepath, std::string destpath)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
+    int entriesIndex = findFileinEntries(sourcepath);
+    if (entriesIndex != -1)
+    {
+        for (int i = 0;i < 56;i++)
+        {
+            entries[entriesIndex]->file_name[i] = 0;
+        }
+        for (int i = 0;i < destpath.size() && i < 56;i++)
+        {
+            entries[entriesIndex]->file_name[i] = destpath[i];
+        }
+    }
     return 0;
 }
 
