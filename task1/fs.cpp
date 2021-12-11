@@ -1,4 +1,6 @@
+#include <cstdint>
 #include <iostream>
+#include <string>
 #include "fs.h"
 
 FS::FS()
@@ -185,6 +187,44 @@ void FS::readInFatRoot()
     }
 }
 
+// returns index in entries array, -1 if not found
+int FS::findFileinEntries(std::string filename)
+{
+    bool found = false;
+    //Tries to find file in entries
+    int index = -1;
+    uint16_t first_blk = 0;
+    for (int i = 0;i < entries.size();i++)
+    {
+        if (entries[i]->file_name == filename)
+        {
+            found = true;
+            index = i;
+            break;
+        }
+    }
+    // return index
+    return index;
+}
+// return index of first block
+int FS::findFileInRoot(std::string filename)
+{
+    bool found = false;
+    //Tries to find file in rootblock
+    uint16_t first_blk = 0;
+    for (int i = 0;i < entries.size();i++)
+    {
+        if (entries[i]->file_name == filename)
+        {
+            first_blk = entries[i]->first_blk;
+            found = true;
+            break;
+        }
+    }
+    // return index of first block
+    return first_blk;
+}
+
 // formats the disk, i.e., creates an empty file system
 int FS::format()
 {
@@ -242,10 +282,67 @@ void FS::testDisk()
     }
 }
 
+// help function for cp return first block index
+int FS::writeBlocksFromString(std::string filepath, std::string contents)
+{
+    uint8_t block[4096];
+    int firstFatIndex = 0;
+    int prevIndex = FAT_EOF;
+
+    // start writing blocks
+    int count = 0;
+    int fatIndex = 0;
+    fatIndex = getFreeIndex();
+    firstFatIndex = fatIndex;
+    for (int i = 0; i < contents.size(); i++)
+    {
+        // if file is bigger than size of 1 block (4096 bytes)
+        if (count >= 4096)
+        {
+            // write block to file
+            disk.write(fatIndex, block);
+            // save previous fatIndex
+            prevIndex = fatIndex;
+            // set prevIndex as EOF temporarily so
+            // so getFreeIndex doesnt choose it.
+            fat[prevIndex] = FAT_EOF;
+            // get a new free block index
+            fatIndex = getFreeIndex();
+            // set prev FAT index next block as current fatIndex
+            fat[prevIndex] = fatIndex;
+            // reset block
+            for (int j = 0; j < 4096; j++)
+            {
+                block[j] = 0;
+            }
+            // reset count so we can continue
+            // writing the remaining file contents to the reset block
+            count = 0;
+            //std::cout << "fatIndex: " << fatIndex << std::endl;
+            //std::cout << "prevIndex: " << prevIndex << std::endl;
+        }
+        // add each char from file contents into block.
+        block[count] = contents[i];
+        count++;
+    }
+
+    // write last block
+    fat[fatIndex] = FAT_EOF;
+    disk.write(fatIndex, block);
+
+    std::cout << "Added contents to blocks\n";
+    return firstFatIndex;
+}
+
 // create <filepath> creates a new file on the disk, the data content is
 // written on the following rows (ended with an empty row)
 int FS::create(std::string filepath)
 {
+
+    if(findFileInRoot(filepath) != 0){
+        return 1;
+    }
+
     std::cin.clear();
     std::cout << "FS::create(" << filepath << ")\n";
     std::string contents;
@@ -266,6 +363,8 @@ int FS::create(std::string filepath)
         row.push_back('\n');
         contents.append(row);
     }
+    // add null termination to end of file.
+    contents.push_back('\0');
 
     // start writing blocks
     int count = 0;
@@ -331,23 +430,19 @@ int FS::create(std::string filepath)
 int FS::cat(std::string filepath)
 {
     std::cout << "FS::cat(" << filepath << ")\n";
-
     //Tries to find file in rootblock
-    uint16_t first_blk = 0;
-    uint8_t block[4096];
-    for (int i = 0;i < entries.size();i++)
-    {
-        if (entries[i]->file_name == filepath)
-        {
-            first_blk = entries[i]->first_blk;
-            //std::cout << "first_blk: " << first_blk << std::endl;
-            break;
-        }
+    uint16_t first_blk = findFileInRoot(filepath);
+
+    // if file cannot be found, throw error.
+    if(first_blk == 0){
+        return 1;
     }
+
+    uint8_t block[4096];
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
-        //std::cout << "fatIndex: " << fatIndex << std::endl;
+        std::cout << "Block Index: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
         for (int i = 0;i < 4096 && block[i] != '\0';i++)
         {
@@ -377,51 +472,49 @@ int FS::cp(std::string sourcepath, std::string destpath)
     std::cout << "FS::cp(" << sourcepath << "," << destpath << ")\n";
     //Tries to find file in rootblock
 
-    bool isEqual = true;
     uint16_t first_blk = 0;
     uint8_t block[4096];
     int dirEntryIndex = 0;
-    for (int i = 0; i < entries.size(); i++)
-    {
-        if (entries[i]->file_name == sourcepath)
-        {
-            first_blk = entries[i]->first_blk;
-            //std::cout << "first_blk: " << first_blk << std::endl;
-            break;
-        }
+    std::string contents = "";
+    //Tries to find file in rootblock
+    first_blk = findFileInRoot(sourcepath);
+
+    // if file cannot be found, throw error.
+    if(first_blk == 0){
+        return 1;
     }
+
+    // read in all the from the sourcefile blocks to contents.
     int fatIndex = first_blk;
-    int cpIndex = 0;
-    int pred = FAT_EOF;
-    int firstFatIndex = 0;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
+        //std::cout << "fatIndex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        cpIndex = getFreeIndex();
-        if (pred != FAT_EOF)
+        for (int i = 0;i < 4096 && block[i] != '\0';i++)
         {
-            fat[pred] = cpIndex;
+            contents.push_back(block[i]);
         }
-        else
-        {
-            firstFatIndex = cpIndex;
-            fat[cpIndex] = pred;
-        }
-        disk.write(cpIndex, block);
         fatIndex = fat[fatIndex];
     }
-    fat[cpIndex] = FAT_EOF;
+    // create new file and save its first block.
+    first_blk = writeBlocksFromString(destpath, contents);
+
+    // find sourcefile dir_entry
+    dirEntryIndex = findFileinEntries(sourcepath);
+
+    // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
-    for (int i = 0; i < 56 && i < destpath.size(); i++)
+    for (int i = 0; i < 56 && i < destpath.size() + 1; i++)
     {
         newEntry->file_name[i] = destpath[i];
     }
-    newEntry->first_blk = firstFatIndex;
+    newEntry->first_blk = first_blk;
     newEntry->size = entries[dirEntryIndex]->size;
     newEntry->access_rights = entries[dirEntryIndex]->access_rights;
     newEntry->type = entries[dirEntryIndex]->type;
     entries.push_back(newEntry);
 
+    // save to disk
     updateFatRoot();
 
     return 0;

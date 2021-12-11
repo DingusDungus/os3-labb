@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <vector>
 #include <cstdint>
 #include "disk.h"
@@ -36,6 +37,12 @@ private:
     void readInFatRoot();
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
     void convert16to8(uint16_t num, uint8_t * result);
+    // help function for cp return first block index
+    int writeBlocksFromString(std::string filepath, std::string contents);
+    // return index of first block, 0 if not found
+    int findFileInRoot(std::string filename);
+    // returns index in entries array, -1 if not found
+    int findFileinEntries(std::string filename);
 
 public:
     FS();
