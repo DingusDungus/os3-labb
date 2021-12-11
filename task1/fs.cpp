@@ -442,7 +442,7 @@ int FS::cat(std::string filepath)
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
-        std::cout << "Block Index: " << fatIndex << std::endl;
+        std::cout << "Current Block Index: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
         for (int i = 0;i < 4096 && block[i] != '\0';i++)
         {
@@ -478,9 +478,15 @@ int FS::cp(std::string sourcepath, std::string destpath)
     std::string contents = "";
     //Tries to find file in rootblock
     first_blk = findFileInRoot(sourcepath);
+    // find sourcefile dir_entry
+    dirEntryIndex = findFileinEntries(sourcepath);
 
     // if file cannot be found, throw error.
     if(first_blk == 0){
+        return 1;
+    }
+    // if destfile already exists, throw error.
+    if(dirEntryIndex != -1){
         return 1;
     }
 
@@ -498,9 +504,6 @@ int FS::cp(std::string sourcepath, std::string destpath)
     }
     // create new file and save its first block.
     first_blk = writeBlocksFromString(destpath, contents);
-
-    // find sourcefile dir_entry
-    dirEntryIndex = findFileinEntries(sourcepath);
 
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
