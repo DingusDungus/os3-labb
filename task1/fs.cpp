@@ -14,7 +14,7 @@ FS::~FS()
     updateFatRoot();
 }
 
-int getSecondNum(uint16_t num)
+int FS::getSecondNum(uint16_t num)
 {
     int i;
     for (i = 0; ((i + 1) * 255) < num; i++)
@@ -22,12 +22,12 @@ int getSecondNum(uint16_t num)
     return i;
 }
 
-uint32_t convert8to32(uint8_t *result)
+uint32_t FS::convert8to32(uint8_t *result)
 {
     return (result[0] << 24) | (result[1] << 16) | (result[2] << 8) | result[3];
 }
 
-void convert32to8(uint32_t num, uint8_t *result)
+void FS::convert32to8(uint32_t num, uint8_t *result)
 {
     result[0] = (num & 0xff000000UL) >> 24;
     result[1] = (num & 0x00ff0000UL) >> 16;
