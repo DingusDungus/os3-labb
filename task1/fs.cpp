@@ -225,6 +225,22 @@ int FS::findFileInRoot(std::string filename)
     return first_blk;
 }
 
+bool FS::fileExist(std::string filename)
+{
+    bool found = false;
+    //Tries to find file
+    for (int i = 0;i < entries.size();i++)
+    {
+        if (entries[i]->file_name == filename)
+        {
+            found = true;
+            break;
+        }
+    }
+    // return index of first block
+    return found;
+}
+
 // formats the disk, i.e., creates an empty file system
 int FS::format()
 {
@@ -339,7 +355,8 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents)
 int FS::create(std::string filepath)
 {
 
-    if(findFileInRoot(filepath) != 0){
+    // throw error if file already exists
+    if(fileExist(filepath)){
         return 1;
     }
 
@@ -366,46 +383,8 @@ int FS::create(std::string filepath)
     // add null termination to end of file.
     contents.push_back('\0');
 
-    // start writing blocks
-    int count = 0;
-    int fatIndex = 0;
-    fatIndex = getFreeIndex();
-    firstFatIndex = fatIndex;
-    for (int i = 0; i < contents.size(); i++)
-    {
-        // if file is bigger than size of 1 block (4096 bytes)
-        if (count >= 4096)
-        {
-            // write block to file
-            disk.write(fatIndex, block);
-            // save previous fatIndex
-            prevIndex = fatIndex;
-            // set prevIndex as EOF temporarily so
-            // so getFreeIndex doesnt choose it.
-            fat[prevIndex] = FAT_EOF;
-            // get a new free block index
-            fatIndex = getFreeIndex();
-            // set prev FAT index next block as current fatIndex
-            fat[prevIndex] = fatIndex;
-            // reset block
-            for (int j = 0; j < 4096; j++)
-            {
-                block[j] = 0;
-            }
-            // reset count so we can continue
-            // writing the remaining file contents to the reset block
-            count = 0;
-            //std::cout << "fatIndex: " << fatIndex << std::endl;
-            //std::cout << "prevIndex: " << prevIndex << std::endl;
-        }
-        // add each char from file contents into block.
-        block[count] = contents[i];
-        count++;
-    }
-
-    // write last block
-    fat[fatIndex] = FAT_EOF;
-    disk.write(fatIndex, block);
+    // create new file and save its first block.
+    firstFatIndex = writeBlocksFromString(filepath, contents);
 
     std::cout << "Added contents to blocks\n";
 
@@ -478,15 +457,13 @@ int FS::cp(std::string sourcepath, std::string destpath)
     std::string contents = "";
     //Tries to find file in rootblock
     first_blk = findFileInRoot(sourcepath);
-    // find sourcefile dir_entry
-    dirEntryIndex = findFileinEntries(sourcepath);
 
     // if file cannot be found, throw error.
     if(first_blk == 0){
         return 1;
     }
-    // if destfile already exists, throw error.
-    if(dirEntryIndex != -1){
+    // throw error if destination file already exists
+    if(fileExist(destpath)){
         return 1;
     }
 
@@ -504,6 +481,9 @@ int FS::cp(std::string sourcepath, std::string destpath)
     }
     // create new file and save its first block.
     first_blk = writeBlocksFromString(destpath, contents);
+
+    // find sourcefile dir_entry
+    dirEntryIndex = findFileinEntries(sourcepath);
 
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;

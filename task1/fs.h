@@ -43,6 +43,8 @@ private:
     int findFileInRoot(std::string filename);
     // returns index in entries array, -1 if not found
     int findFileinEntries(std::string filename);
+    // check if file exists
+    bool fileExist(std::string filename);
 
 public:
     FS();
