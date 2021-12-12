@@ -36,9 +36,13 @@ private:
     void updateFatRoot();
     void readInFatRoot();
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
+
     void convert16to8(uint16_t num, uint8_t * result);
+
     int getSecondNum(uint16_t num);
+
     uint32_t convert8to32(uint8_t *result);
+
     void convert32to8(uint32_t num, uint8_t *result);
     // help function for cp return first block index
     int writeBlocksFromString(std::string filepath, std::string contents);
