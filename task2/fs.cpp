@@ -654,7 +654,8 @@ int FS::append(std::string filepath1, std::string filepath2)
     findEOF(entries[entryIndex]->first_blk, result);
     int count = result[1];
     fatIndex = result[0];
-    // Writes string into EOF block at the given position in the last block (i.e., where the contents in the block ends)
+    // Writes string into EOF block at the given position in the last block
+    // (i.e., where the contents in the block ends)
     // and onwards into new blocks if needed
     writeBlocksFromString(filepath2, contents, fatIndex, count);
     entries[entryIndex]->size += contents.size();

@@ -43,7 +43,8 @@ private:
     // help function for cp return first block index
     int writeBlocksFromString(std::string filepath, std::string contents);
     //Writes to already existing block from string
-    int writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);
+    int writeBlocksFromString
+        (std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);
     // return index of first block, 0 if not found
     int findFileInRoot(std::string filename);
     // returns index in entries array, -1 if not found
