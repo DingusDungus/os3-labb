@@ -576,10 +576,12 @@ int FS::mv(std::string sourcepath, std::string destpath)
     int entriesIndex = findFileinEntries(sourcepath);
     if (entriesIndex != -1)
     {
+        // reset filename to empty
         for (int i = 0;i < 56;i++)
         {
             entries[entriesIndex]->file_name[i] = 0;
         }
+        // rename file
         for (int i = 0;i < destpath.size() && i < 56;i++)
         {
             entries[entriesIndex]->file_name[i] = destpath[i];
@@ -595,15 +597,20 @@ int FS::mv(std::string sourcepath, std::string destpath)
 int FS::rm(std::string filepath)
 {
     std::cout << "FS::rm(" << filepath << ")\n";
+    // if file doesnt exist throw error.
+    if(!fileExist(filepath)){
+        return 1;
+    }
     int entryIndex = findFileinEntries(filepath);
-    int fatIndex = entries[entryIndex]->first_blk;
-    int forwardIndex = 0;
-    while (forwardIndex != FAT_EOF)
+    uint16_t first_blk = findFileInRoot(filepath);
+    int fatIndex = first_blk;
+    int nextIndex = fatIndex;
+    while (nextIndex != FAT_EOF && nextIndex != 0)
     {
-        std::cout << "Iteration" << "\n";
-        forwardIndex = fat[fatIndex];
+        std::cout << "Removing block: "<< fatIndex << "\n";
+        nextIndex = fat[fatIndex];
         fat[fatIndex] = FAT_FREE;
-        fatIndex = fat[forwardIndex];
+        fatIndex = nextIndex;
     }
     //Erases the dir entry from the vector
     entries.erase(entries.begin() + entryIndex);
@@ -651,7 +658,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     // and onwards into new blocks if needed
     writeBlocksFromString(filepath2, contents, fatIndex, count);
     entries[entryIndex]->size += contents.size();
-    
+
     updateFatRoot();
 
     return 0;
