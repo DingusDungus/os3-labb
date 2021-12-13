@@ -640,10 +640,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     {
         std::cout << "Iteration" << "\n";
         disk.read(fatIndex, block);
-        for (i = 0;i < 4096 && block[i] != '\0';i++)
-        {
-            sBlock.push_back(block[i]);
-        }
+        sBlock = (char *)block;
         contents.append(sBlock);
         fatIndex = fat[fatIndex];
     }
