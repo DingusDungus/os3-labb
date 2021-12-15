@@ -15,6 +15,7 @@ struct dir_entry {
 };
 struct Node {
     dir_entry entry;
+    Node* parent;
     std::vector<Node*> children;
     Node(dir_entry val)
     {
