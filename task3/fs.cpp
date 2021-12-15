@@ -667,7 +667,6 @@ int FS::append(std::string filepath1, std::string filepath2)
 int FS::mkdir(std::string dirpath)
 {
     std::cout << "FS::mkdir(" << dirpath << ")\n";
-<<<<<<< HEAD
     int freeIndex = getFreeIndex();
     fat[freeIndex] = FAT_EOF;
     dir_entry *newEntry = new dir_entry;
@@ -682,10 +681,6 @@ int FS::mkdir(std::string dirpath)
     entries.push_back(newEntry);
     std::cout << "Added contents to dir entries\n";
 
-    updateFatRoot();
-
-=======
->>>>>>> 995ce852101ccd70970f87cd22552f066549013f
     return 0;
 }
 
