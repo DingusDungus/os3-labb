@@ -681,6 +681,8 @@ int FS::mkdir(std::string dirpath)
     entries.push_back(newEntry);
     std::cout << "Added contents to dir entries\n";
 
+    updateFatRoot();
+
     return 0;
 }
 
