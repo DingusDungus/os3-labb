@@ -27,6 +27,7 @@ class FSTree
 {
 private:
     Node* root_node = nullptr;
+    Node* lastInserted = nullptr;
     int depth = 0;
 
 
@@ -34,7 +35,7 @@ public:
     FSTree();
     ~FSTree();
     // build up the FSTree from data
-    void insert(dir_entry entry);
+    void insert(dir_entry entry, int nrOfChildren, dir_entry parent);
     void buildFileTree();
 };
 

@@ -13,7 +13,7 @@ void FSTree::buildFileTree()
 {
     std::cout << "Building tree from file..." << std::endl;
 }
-void FSTree::insert(dir_entry entry)
+void FSTree::insert(dir_entry entry, int nrOfChildren, dir_entry parent)
 {
     // TODO
 }

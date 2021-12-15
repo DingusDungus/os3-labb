@@ -35,6 +35,7 @@ private:
     int16_t fat[BLOCK_SIZE/2];
     // size of a dir_entry is 64 bytes
     std::vector<dir_entry*> entries;
+    FSTree fileTree;
     void updateFatRoot();
     void readInFatRoot();
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
