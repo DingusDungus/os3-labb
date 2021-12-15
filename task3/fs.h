@@ -19,7 +19,7 @@
 #define WRITE 0x02
 #define EXECUTE 0x01
 
-// Already defined in tree class.
+// Already defined in FSTree class.
 // struct dir_entry {
 //     char file_name[56]; // name of the file / sub-directory
 //     uint32_t size; // size of the file in bytes
