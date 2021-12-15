@@ -18,7 +18,7 @@ struct Node {
     std::vector<Node*> children;
     Node(dir_entry val)
     {
-        dir = val;
+        entry = val;
     }
 };
 
