@@ -667,6 +667,20 @@ int FS::append(std::string filepath1, std::string filepath2)
 int FS::mkdir(std::string dirpath)
 {
     std::cout << "FS::mkdir(" << dirpath << ")\n";
+    int freeIndex = getFreeIndex();
+    fat[freeIndex] = FAT_EOF;
+    dir_entry *newEntry = new dir_entry;
+    for (int i = 0; i < 56 && i < dirpath.size() + 1; i++)
+    {
+        newEntry->file_name[i] = dirpath[i];
+    }
+    newEntry->first_blk = freeIndex;
+    newEntry->size = '-';
+    newEntry->access_rights = 0x06;
+    newEntry->type = 1;
+    entries.push_back(newEntry);
+    std::cout << "Added contents to dir entries\n";
+
     return 0;
 }
 
