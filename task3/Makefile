@@ -1,7 +1,7 @@
 GCC=g++
 
 all: main.o shell.o fs.o disk.o
-	$(GCC) -std=c++11 -o filesystem main.o shell.o disk.o fs.o
+	$(GCC) -std=c++11 -o filesystem main.o shell.o disk.o fs.o -Wall 
 
 main.o: main.cpp shell.h disk.h
 	$(GCC) -std=c++11 -O2 -c main.cpp
@@ -14,6 +14,9 @@ fs.o: fs.cpp fs.h disk.h
 
 disk.o: disk.cpp disk.h
 	$(GCC) -std=c++11 -O2 -c disk.cpp
+
+debug:	main.o shell.o fs.o disk.o
+	clang++ -std=c++11 -o filesystem main.o shell.o disk.o fs.o -Wall -fsanitize=memory -fno-omit-frame-pointer
 
 clean:
 	rm filesystem main.o shell.o fs.o disk.o
