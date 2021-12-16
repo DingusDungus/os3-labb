@@ -63,7 +63,7 @@ private:
     void initWorkingDir(uint16_t blk);
     void changeWorkingDir(uint16_t blk);
     void initTree();
-    void initTreeContinued(dir_entry *entry, treeNode *branch);
+    void initTreeContinued(treeNode *branch);
     void writeWorkingDir(uint16_t blk);
 
     uint16_t convert8to16(uint8_t num1, uint8_t num2);

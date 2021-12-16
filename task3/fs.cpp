@@ -296,15 +296,14 @@ void FS::initTree()
     root->entry = newDir;
     int size = workingDir.size();
     initWorkingDir(ROOT_BLOCK);
-    initTreeContinued(newDir, root);
+    initTreeContinued(root);
     initWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
     this->branch = this->root;
 }
 
-void FS::initTreeContinued(dir_entry *entry, treeNode *pBranch)
+void FS::initTreeContinued(treeNode *pBranch)
 {
-    pBranch->entry = entry;
     int size = workingDir.size();
     std::cout << pBranch->entry->file_name << std::endl;
     for (int i = 0; i < size; i++)
@@ -312,10 +311,14 @@ void FS::initTreeContinued(dir_entry *entry, treeNode *pBranch)
         if (workingDir[i]->type == TYPE_DIR)
         {
             treeNode *newBranch = new treeNode(pBranch, workingDir[i]);
+            std::cout << workingDir[i]->file_name << std::endl;
+
             pBranch->children.push_back(newBranch);
+
             initWorkingDir(workingDir[i]->first_blk);
-            initTreeContinued(workingDir[i], newBranch);
-            initWorkingDir(entry->first_blk);
+            std::cout << std::endl;
+            initTreeContinued(newBranch);
+            initWorkingDir(newBranch->entry->first_blk);
         }
     }
 }
@@ -325,6 +328,12 @@ void FS::writeWorkingDir(uint16_t blk)
     uint8_t block[4096];
     uint8_t bit16[2];
     uint8_t bit32[4];
+    
+    for (int i = 0; i < 4096; i++)
+    {
+        block[i] = 0;
+    }
+    disk.write(blk, block);
 
     int x = 0;
 
@@ -462,14 +471,11 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     std::cout << std::endl;
-    std::cout << branch->entry->file_name << std::endl;
-    std::cout << std::endl;
-    for (int i = 0; i < branch->children.size(); i++)
+    for (int i = 0;i < workingDir.size();i++)
     {
-        std::cout << branch->children[i]->entry->file_name << std::endl;
-        std::cout << branch->children[i]->entry->first_blk << std::endl;
+        std::cout << workingDir[i]->file_name << " " << workingDir[i]->first_blk << " " << std::to_string(workingDir[i]->type);
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -664,10 +670,10 @@ int FS::cat(std::string filepath)
 int FS::ls()
 {
     std::cout << "FS::ls()\n";
-    std::cout << "name\tsize\n";
+    std::cout << "name\tsize\ttype\n";
     for (int i = 0; i < workingDir.size(); i++)
     {
-        std::cout << workingDir[i]->file_name << '\t' << workingDir[i]->size << '\n';
+        std::cout << workingDir[i]->file_name << '\t' << workingDir[i]->size << '\t' << std::to_string(workingDir[i]->type) << '\n';
     }
     return 0;
 }
@@ -738,18 +744,47 @@ int FS::cp(std::string sourcepath, std::string destpath)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
-    int workingDirIndex = findFileinworkingDir(sourcepath);
-    if (workingDirIndex != -1)
+    int destIndex = findFileinworkingDir(destpath);
+    int srcIndex = findFileinworkingDir(sourcepath);
+    uint16_t branch_blk = branch->entry->first_blk;
+    if (destIndex != -1 && srcIndex != -1 && workingDir[destIndex]->type == TYPE_DIR)
     {
-        // reset filename to empty
-        for (int i = 0; i < 56; i++)
+        std::cout << "Moving" << std::endl;
+        std::cout << workingDir[destIndex]->first_blk << std::endl;
+        std::cout << workingDir[srcIndex]->first_blk << std::endl;
+        
+        dir_entry *fileEntry = new dir_entry;
+        for (int i = 0; i < 56 && i < destpath.size() + 1; i++)
         {
-            workingDir[workingDirIndex]->file_name[i] = 0;
+            fileEntry->file_name[i] = workingDir[srcIndex]->file_name[i];
         }
-        // rename file
-        for (int i = 0; i < destpath.size() && i < 56; i++)
+        fileEntry->size = workingDir[srcIndex]->size;
+        fileEntry->type = workingDir[srcIndex]->type;
+        fileEntry->first_blk = workingDir[srcIndex]->first_blk;
+        fileEntry->access_rights = workingDir[srcIndex]->access_rights;
+        
+        workingDir.erase(workingDir.begin() + srcIndex);
+        writeWorkingDir(branch->entry->first_blk);
+        initWorkingDir(workingDir[destIndex]->first_blk);
+        workingDir.push_back(fileEntry);
+        writeWorkingDir(workingDir[destIndex]->first_blk);
+        initWorkingDir(branch->entry->first_blk);
+    }
+    else if (srcIndex != -1 && destIndex == -1)
+    {
+        int workingDirIndex = findFileinworkingDir(sourcepath);
+        if (workingDirIndex != -1)
         {
-            workingDir[workingDirIndex]->file_name[i] = destpath[i];
+            // reset filename to empty
+            for (int i = 0; i < 56; i++)
+            {
+                workingDir[workingDirIndex]->file_name[i] = 0;
+            }
+            // rename file
+            for (int i = 0; i < destpath.size() && i < 56; i++)
+            {
+                workingDir[workingDirIndex]->file_name[i] = destpath[i];
+            }
         }
     }
 
