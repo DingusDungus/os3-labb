@@ -84,6 +84,8 @@ private:
     bool fileExist(std::string filename);
     // Finds end of file both block index and end in said block
     void findEOF(uint16_t first_blk, uint16_t *result);
+    //Checks if dir is empty
+    bool dirEmpty(uint16_t blk);
 
 public:
     FS();

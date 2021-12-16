@@ -69,6 +69,17 @@ void FS::findEOF(uint16_t first_blk, uint16_t *result)
     result[1] = i;
 }
 
+bool FS::dirEmpty(uint16_t blk)
+{
+    uint8_t block[4096];
+    disk.read(blk, block);
+    if (block[0] == 0)
+    {
+        return true;
+    }
+    return false;
+}
+
 void FS::updateFat()
 {
     uint8_t block[4096];
@@ -328,12 +339,11 @@ void FS::writeWorkingDir(uint16_t blk)
     uint8_t block[4096];
     uint8_t bit16[2];
     uint8_t bit32[4];
-    
+
     for (int i = 0; i < 4096; i++)
     {
         block[i] = 0;
     }
-    disk.write(blk, block);
 
     int x = 0;
 
@@ -471,7 +481,7 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     std::cout << std::endl;
-    for (int i = 0;i < workingDir.size();i++)
+    for (int i = 0; i < workingDir.size(); i++)
     {
         std::cout << workingDir[i]->file_name << " " << workingDir[i]->first_blk << " " << std::to_string(workingDir[i]->type);
         std::cout << std::endl;
@@ -690,15 +700,16 @@ int FS::cp(std::string sourcepath, std::string destpath)
     int dirEntryIndex = 0;
     std::string contents = "";
     // Tries to find file in rootblock
-    first_blk = findFileInRoot(sourcepath);
-
+    first_blk = workingDir[findFileinworkingDir(sourcepath)]->first_blk;
+    uint16_t destBlk = workingDir[findFileinworkingDir(destpath)]->first_blk;
     // if file cannot be found, throw error.
     if (first_blk == 0)
     {
         return 1;
     }
     // throw error if destination file already exists
-    if (fileExist(destpath))
+    std::cout << "Hello\n";
+    if (fileExist(destpath) && destBlk != -1 && workingDir[destBlk]->type != TYPE_DIR)
     {
         return 1;
     }
@@ -731,7 +742,17 @@ int FS::cp(std::string sourcepath, std::string destpath)
     newEntry->size = workingDir[dirEntryIndex]->size;
     newEntry->access_rights = workingDir[dirEntryIndex]->access_rights;
     newEntry->type = workingDir[dirEntryIndex]->type;
-    workingDir.push_back(newEntry);
+
+    if (workingDir[destBlk]->type == TYPE_DIR)
+    {
+        initWorkingDir(destBlk);
+        workingDir.push_back(newEntry);
+        initWorkingDir(branch->entry->first_blk);
+    }
+    else
+    {
+        workingDir.push_back(newEntry);
+    }
 
     // save to disk
     writeWorkingDir(branch->entry->first_blk);
@@ -746,13 +767,11 @@ int FS::mv(std::string sourcepath, std::string destpath)
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
     int destIndex = findFileinworkingDir(destpath);
     int srcIndex = findFileinworkingDir(sourcepath);
+    int destBlock = workingDir[destIndex]->first_blk;
     uint16_t branch_blk = branch->entry->first_blk;
+
     if (destIndex != -1 && srcIndex != -1 && workingDir[destIndex]->type == TYPE_DIR)
     {
-        std::cout << "Moving" << std::endl;
-        std::cout << workingDir[destIndex]->first_blk << std::endl;
-        std::cout << workingDir[srcIndex]->first_blk << std::endl;
-        
         dir_entry *fileEntry = new dir_entry;
         for (int i = 0; i < 56 && i < destpath.size() + 1; i++)
         {
@@ -762,12 +781,12 @@ int FS::mv(std::string sourcepath, std::string destpath)
         fileEntry->type = workingDir[srcIndex]->type;
         fileEntry->first_blk = workingDir[srcIndex]->first_blk;
         fileEntry->access_rights = workingDir[srcIndex]->access_rights;
-        
+
         workingDir.erase(workingDir.begin() + srcIndex);
         writeWorkingDir(branch->entry->first_blk);
         initWorkingDir(workingDir[destIndex]->first_blk);
         workingDir.push_back(fileEntry);
-        writeWorkingDir(workingDir[destIndex]->first_blk);
+        writeWorkingDir(destBlock);
         initWorkingDir(branch->entry->first_blk);
     }
     else if (srcIndex != -1 && destIndex == -1)
@@ -803,18 +822,32 @@ int FS::rm(std::string filepath)
         return 1;
     }
     int entryIndex = findFileinworkingDir(filepath);
-    uint16_t first_blk = findFileInRoot(filepath);
-    int fatIndex = first_blk;
-    int nextIndex = fatIndex;
-    while (nextIndex != FAT_EOF && nextIndex != 0)
+    if (workingDir[entryIndex]->type == TYPE_FILE)
     {
-        std::cout << "Removing block: " << fatIndex << "\n";
-        nextIndex = fat[fatIndex];
-        fat[fatIndex] = FAT_FREE;
-        fatIndex = nextIndex;
+        int fatIndex = workingDir[entryIndex]->first_blk;
+        int nextIndex = fatIndex;
+        while (nextIndex != FAT_EOF && nextIndex != 0)
+        {
+            std::cout << "Removing block: " << fatIndex << "\n";
+            nextIndex = fat[fatIndex];
+            fat[fatIndex] = FAT_FREE;
+            fatIndex = nextIndex;
+        }
+        // Erases the dir entry from the vector
+        workingDir.erase(workingDir.begin() + entryIndex);
     }
-    // Erases the dir entry from the vector
-    workingDir.erase(workingDir.begin() + entryIndex);
+    else
+    {
+        if (dirEmpty(workingDir[entryIndex]->first_blk))
+        {
+            fat[workingDir[entryIndex]->first_blk] = FAT_FREE;
+            workingDir.erase(workingDir.begin() + entryIndex);
+        }
+        else
+        {
+            return 1;
+        }
+    }
 
     writeWorkingDir(branch->entry->first_blk);
 
@@ -905,8 +938,7 @@ int FS::cd(std::string dirpath)
     int index = findFileinworkingDir(dirpath);
     if (index == -1 && dirpath != "..")
     {
-        std::cout << "Error: Directory doesn't exist\n";
-        return -1;
+        return 1;
     }
     if (dirpath == "..")
     {
@@ -941,6 +973,10 @@ int FS::pwd()
     for (int i = path.size() - 1; i >= 0; i--)
     {
         std::cout << '/' + path[i];
+    }
+    if (branch = branch->parent)
+    {
+        std::cout << '/';
     }
     std::cout << std::endl;
     return 0;
