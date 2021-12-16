@@ -295,32 +295,24 @@ void FS::initTree()
     newDir->access_rights = READ + WRITE;
     root->entry = newDir;
     int size = workingDir.size();
-    for (int i = 0; i < size; i++)
-    {
-        if (workingDir[i]->type == TYPE_DIR)
-        {
-            treeNode *newBranch = new treeNode(root, workingDir[i]);
-            root->children.push_back(newBranch);
-            std::cout << std::to_string(workingDir[i]->first_blk) << std::endl;
-            initWorkingDir(workingDir[i]->first_blk);
-            initTreeContinued(workingDir[i], newBranch);
-            initWorkingDir(ROOT_BLOCK);
-        }
-    }
-    branch = root;
-    initWorkingDir(0);
+    initWorkingDir(ROOT_BLOCK);
+    initTreeContinued(newDir, root);
+    initWorkingDir(ROOT_BLOCK);
+    std::cout << "Ended\n";
+    this->branch = this->root;
 }
 
-void FS::initTreeContinued(dir_entry *entry, treeNode *branch)
+void FS::initTreeContinued(dir_entry *entry, treeNode *pBranch)
 {
-    branch->entry = entry;
+    pBranch->entry = entry;
     int size = workingDir.size();
+    std::cout << pBranch->entry->file_name << std::endl;
     for (int i = 0; i < size; i++)
     {
         if (workingDir[i]->type == TYPE_DIR)
         {
-            treeNode *newBranch = new treeNode(branch, workingDir[i]);
-            branch->children.push_back(newBranch);
+            treeNode *newBranch = new treeNode(pBranch, workingDir[i]);
+            pBranch->children.push_back(newBranch);
             initWorkingDir(workingDir[i]->first_blk);
             initTreeContinued(workingDir[i], newBranch);
             initWorkingDir(entry->first_blk);
@@ -470,8 +462,11 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     std::cout << std::endl;
+    std::cout << branch->entry->file_name << std::endl;
+    std::cout << std::endl;
     for (int i = 0; i < branch->children.size(); i++)
     {
+        std::cout << branch->children[i]->entry->file_name << std::endl;
         std::cout << branch->children[i]->entry->first_blk << std::endl;
     }
     std::cout << std::endl;
