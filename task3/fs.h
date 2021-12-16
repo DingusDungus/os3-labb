@@ -26,11 +26,11 @@ struct dir_entry {
     uint8_t access_rights; // read (0x04), write (0x02), execute (0x01)
 };
 
-struct treeNode 
+struct treeNode
 {
     treeNode* parent;
-    dir_entry *entry;
-    std::vector<treeNode *> children;
+    dir_entry* entry;
+    std::vector<treeNode*> children;
     treeNode()
     {
         parent = nullptr;
