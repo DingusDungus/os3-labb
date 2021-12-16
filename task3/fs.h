@@ -26,11 +26,11 @@ struct dir_entry {
     uint8_t access_rights; // read (0x04), write (0x02), execute (0x01)
 };
 
-struct treeNode 
+struct treeNode
 {
     treeNode* parent;
-    dir_entry *entry;
-    std::vector<treeNode *> children;
+    dir_entry* entry;
+    std::vector<treeNode*> children;
     treeNode()
     {
         parent = nullptr;
@@ -63,7 +63,7 @@ private:
     void changeWorkingDir(uint16_t blk);
     void initTree();
     void initTreeContinued(dir_entry *entry, treeNode *branch);
-    
+
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
     void convert16to8(uint16_t num, uint8_t * result);
     int getSecondNum(uint16_t num);
