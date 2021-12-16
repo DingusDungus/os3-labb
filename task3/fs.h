@@ -3,7 +3,6 @@
 #include <vector>
 #include <cstdint>
 #include "disk.h"
-#include "FSTree.h"
 
 #ifndef __FS_H__
 #define __FS_H__
@@ -19,14 +18,35 @@
 #define WRITE 0x02
 #define EXECUTE 0x01
 
-// Already defined in FSTree class.
-// struct dir_entry {
-//     char file_name[56]; // name of the file / sub-directory
-//     uint32_t size; // size of the file in bytes
-//     uint16_t first_blk; // index in the FAT for the first block of the file
-//     uint8_t type; // directory (1) or file (0)
-//     uint8_t access_rights; // read (0x04), write (0x02), execute (0x01)
-// };
+struct dir_entry {
+    char file_name[56]; // name of the file / sub-directory
+    uint32_t size; // size of the file in bytes
+    uint16_t first_blk; // index in the FAT for the first block of the file
+    uint8_t type; // directory (1) or file (0)
+    uint8_t access_rights; // read (0x04), write (0x02), execute (0x01)
+};
+
+struct treeNode 
+{
+    treeNode* parent;
+    dir_entry *entry;
+    std::vector<treeNode *> children;
+    treeNode()
+    {
+        parent = nullptr;
+        entry = nullptr;
+    }
+    treeNode(treeNode *parent)
+    {
+        this->parent = parent;
+        entry = nullptr;
+    }
+    treeNode(treeNode *parent, dir_entry *entry)
+    {
+        this->parent = parent;
+        this->entry = entry;
+    }
+};
 
 class FS {
 private:
@@ -34,10 +54,16 @@ private:
     // size of a FAT entry is 2 bytes
     int16_t fat[BLOCK_SIZE/2];
     // size of a dir_entry is 64 bytes
-    std::vector<dir_entry*> entries;
-    FSTree fileTree;
+    std::vector<dir_entry*> workingDir;
+    treeNode *root;
+    treeNode *branch;
+
     void updateFatRoot();
     void readInFatRoot();
+    void changeWorkingDir(uint16_t blk);
+    void initTree();
+    void initTreeContinued(dir_entry *entry, treeNode *branch);
+    
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
     void convert16to8(uint16_t num, uint8_t * result);
     int getSecondNum(uint16_t num);
@@ -50,8 +76,8 @@ private:
         (std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);
     // return index of first block, 0 if not found
     int findFileInRoot(std::string filename);
-    // returns index in entries array, -1 if not found
-    int findFileinEntries(std::string filename);
+    // returns index in workingDir array, -1 if not found
+    int findFileinworkingDir(std::string filename);
     // check if file exists
     bool fileExist(std::string filename);
     // Finds end of file both block index and end in said block

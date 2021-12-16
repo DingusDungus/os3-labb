@@ -37,8 +37,8 @@ void FS::convert32to8(uint32_t num, uint8_t *result)
 
 void FS::convert16to8(uint16_t num, uint8_t *result)
 {
-    result[0] = *((uint8_t*)&(num)+1);
-    result[1] = *((uint8_t*)&(num)+0);
+    result[0] = *((uint8_t *)&(num) + 1);
+    result[1] = *((uint8_t *)&(num) + 0);
 }
 
 uint16_t FS::convert8to16(uint8_t num1, uint8_t num2)
@@ -55,12 +55,13 @@ void FS::findEOF(uint16_t first_blk, uint16_t *result)
     {
         fatIndex = fat[fatIndex];
     }
-    //Index for the last block
+    // Index for the last block
     result[0] = fatIndex;
     disk.read(fatIndex, block);
-    //Index where contents end in the last block of the file
+    // Index where contents end in the last block of the file
     int i;
-    for (i = 0;i < 4096 && block[i] != '\0';i++);
+    for (i = 0; i < 4096 && block[i] != '\0'; i++)
+        ;
     result[1] = i;
 }
 
@@ -73,8 +74,8 @@ void FS::updateFatRoot()
     disk.write(1, block);
     int x = 0;
     // take each FAT array entry and split it into two 8bit (1 byte)
-    // entries which are placed in the block at index x and x+1
-    for (int i = 0; i < BLOCK_SIZE / 2;i++)
+    // workingDir which are placed in the block at index x and x+1
+    for (int i = 0; i < BLOCK_SIZE / 2; i++)
     {
         convert16to8(fat[i], bit16);
         block[x] = bit16[0];
@@ -94,18 +95,18 @@ void FS::updateFatRoot()
     x = 0;
 
     // size of a dir_entry is 64 bytes
-    for (int i = 0; i < entries.size(); i++)
+    for (int i = 0; i < workingDir.size(); i++)
     {
         // loop through file_name char array
         // adding each char into the block array
         for (int j = 0; j < 56; j++)
         {
-            block[x] = entries[i]->file_name[j];
+            block[x] = workingDir[i]->file_name[j];
             x++;
         }
         // convert one 32 bit (4 bytes) INT to four 8bit (1 byte) INTs
         // saved in var "bit32"
-        convert32to8(entries[i]->size, bit32);
+        convert32to8(workingDir[i]->size, bit32);
         // add each of the four 8bit (1 byte) INTs to the block.
         for (int j = 0; j < 4; j++)
         {
@@ -114,18 +115,18 @@ void FS::updateFatRoot()
         }
         // convert 16bit (2 byte) first_blk into two
         // 8bit (1 byte) INTs
-        convert16to8(entries[i]->first_blk, bit16);
+        convert16to8(workingDir[i]->first_blk, bit16);
         // add each of the two 8bit (1 byte) INTs to the block.
         for (int j = 0; j < 2; j++)
         {
             block[x] = bit16[j];
             x++;
         }
-        //add the type which is already a 8bit (1 byte) INT to the block.
-        block[x] = entries[i]->type;
+        // add the type which is already a 8bit (1 byte) INT to the block.
+        block[x] = workingDir[i]->type;
         x++;
-        //add the access_rights which is already a 8bit (1 byte) INT to the block.
-        block[x] = entries[i]->access_rights;
+        // add the access_rights which is already a 8bit (1 byte) INT to the block.
+        block[x] = workingDir[i]->access_rights;
         x++;
     }
     // write the dir_entry block
@@ -144,13 +145,13 @@ void FS::readInFatRoot()
     // take 2 bytes each iteration and converting them
     // too a 16bit (2 byte) INT and adding it to the FAT array
     // until we have read the whole FAT from file
-    for (int i = 0; i < BLOCK_SIZE / 2;i++)
+    for (int i = 0; i < BLOCK_SIZE / 2; i++)
     {
         fat[i] = convert8to16(block[x], block[x + 1]);
         x += 2;
     }
     // reset the block array
-    for (int i = 0;i < 4096;i++)
+    for (int i = 0; i < 4096; i++)
     {
         block[i] = 0;
     }
@@ -161,7 +162,7 @@ void FS::readInFatRoot()
 
     // loop through dir_entry block until we reach end '\0'
     // jumps 64 at each iteration since size of dir_entry is 64 bytes.
-    for (int i = 0;i < 4096 && block[i] != '\0';i += 64)
+    for (int i = 0; i < 4096 && block[i] != '\0'; i += 64)
     {
         // reset x to point to the first byte of the next dir entry
         int x = i;
@@ -170,13 +171,13 @@ void FS::readInFatRoot()
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
-        for (int j = 0;j < 56;j++)
+        for (int j = 0; j < 56; j++)
         {
             newDir->file_name[j] = block[x];
             x++;
         }
         // copy the next 4 bytes containing size to reslut array
-        for (int j = 0;j < 4;j++)
+        for (int j = 0; j < 4; j++)
         {
             result[j] = block[x];
             x++;
@@ -185,7 +186,7 @@ void FS::readInFatRoot()
         // and copy into newDirs size
         newDir->size = convert8to32(result);
         // copy the next 2 bytes containing first_blk into result array
-        for (int j = 0;j < 2;j++)
+        for (int j = 0; j < 2; j++)
         {
             result[j] = block[x];
             x++;
@@ -199,21 +200,120 @@ void FS::readInFatRoot()
         x++;
         // do the same as for type above for the access_rights.
         newDir->access_rights = block[x];
-        // push the entry into the entries array.
-        entries.push_back(newDir);
+        // push the entry into the workingDir array.
+        workingDir.push_back(newDir);
     }
 }
 
-// returns index in entries array, -1 if not found
-int FS::findFileinEntries(std::string filename)
+void FS::changeWorkingDir(uint16_t blk)
+{
+    updateFatRoot();
+
+    uint8_t block[4096];
+
+    workingDir.clear();
+    // read the dir_entry block into block array
+    disk.read(blk, block);
+    dir_entry *newDir;
+    uint8_t result[4];
+
+    // loop through dir_entry block until we reach end '\0'
+    // jumps 64 at each iteration since size of dir_entry is 64 bytes.
+    for (int i = 0; i < 4096 && block[i] != '\0'; i += 64)
+    {
+        // reset x to point to the first byte of the next dir entry
+        int x = i;
+        // create a new dir
+        newDir = new dir_entry;
+
+        // loop through the 56 bytes of the filename
+        // copy it to newDir filename
+        for (int j = 0; j < 56; j++)
+        {
+            newDir->file_name[j] = block[x];
+            x++;
+        }
+        // copy the next 4 bytes containing size to reslut array
+        for (int j = 0; j < 4; j++)
+        {
+            result[j] = block[x];
+            x++;
+        }
+        // convert the 4 bytes in result array into a 32bit (4 byte) INT
+        // and copy into newDirs size
+        newDir->size = convert8to32(result);
+        // copy the next 2 bytes containing first_blk into result array
+        for (int j = 0; j < 2; j++)
+        {
+            result[j] = block[x];
+            x++;
+        }
+        // convert the 2 bytes into one 16bit (2 byte) INT
+        // and copy it to first_blk
+        newDir->first_blk = convert8to16(result[0], result[1]);
+        // copy the next 1 byte straight into the type variable
+        // as it is already a 8bit (1 byte) INT, no conversion needed.
+        newDir->type = block[x];
+        x++;
+        // do the same as for type above for the access_rights.
+        newDir->access_rights = block[x];
+        // push the entry into the workingDir array.
+        workingDir.push_back(newDir);
+    }
+}
+
+void FS::initTree()
+{
+    root = new treeNode;
+    root->parent = root;
+    dir_entry *newDir = new dir_entry;
+    newDir->file_name[0] = '/';
+    newDir->first_blk = ROOT_BLOCK;
+    newDir->size = '-';
+    newDir->type = TYPE_DIR;
+    newDir->access_rights = READ + WRITE;
+    root->entry = newDir;
+    int size = workingDir.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (workingDir[i]->type == TYPE_DIR)
+        {
+            treeNode *newBranch = new treeNode(root, workingDir[i]);
+            root->children.push_back(newBranch);
+            changeWorkingDir(workingDir[i]->first_blk);
+            initTreeContinued(workingDir[i], newBranch);
+            changeWorkingDir(ROOT_BLOCK);
+        }
+    }
+}
+
+void FS::initTreeContinued(dir_entry *entry, treeNode *branch)
+{
+    branch->entry = entry;
+    int size = workingDir.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (workingDir[i]->type == TYPE_DIR)
+        {
+            treeNode *newBranch = new treeNode(branch, workingDir[i]);
+            branch->children.push_back(newBranch);
+            changeWorkingDir(workingDir[i]->first_blk);
+            initTreeContinued(workingDir[i], newBranch);
+            changeWorkingDir(entry->first_blk);
+        }
+    }
+}
+
+// returns index in workingDir array, -1 if not found
+int FS::findFileinworkingDir(std::string filename)
 {
     bool found = false;
-    //Tries to find file in entries
+    // Tries to find file in workingDir
     int index = -1;
     uint16_t first_blk = 0;
-    for (int i = 0;i < entries.size();i++)
+    for (int i = 0; i < workingDir.size(); i++)
     {
-        if (entries[i]->file_name == filename)
+        if (workingDir[i]->file_name == filename)
         {
             found = true;
             index = i;
@@ -227,13 +327,13 @@ int FS::findFileinEntries(std::string filename)
 int FS::findFileInRoot(std::string filename)
 {
     bool found = false;
-    //Tries to find file in rootblock
+    // Tries to find file in rootblock
     uint16_t first_blk = 0;
-    for (int i = 0;i < entries.size();i++)
+    for (int i = 0; i < workingDir.size(); i++)
     {
-        if (entries[i]->file_name == filename)
+        if (workingDir[i]->file_name == filename)
         {
-            first_blk = entries[i]->first_blk;
+            first_blk = workingDir[i]->first_blk;
             found = true;
             break;
         }
@@ -245,10 +345,10 @@ int FS::findFileInRoot(std::string filename)
 bool FS::fileExist(std::string filename)
 {
     bool found = false;
-    //Tries to find file
-    for (int i = 0;i < entries.size();i++)
+    // Tries to find file
+    for (int i = 0; i < workingDir.size(); i++)
     {
-        if (entries[i]->file_name == filename)
+        if (workingDir[i]->file_name == filename)
         {
             found = true;
             break;
@@ -270,7 +370,7 @@ int FS::format()
     {
         fat[i] = FAT_FREE;
     }
-    entries.clear();
+    workingDir.clear();
 
     updateFatRoot();
 
@@ -294,17 +394,17 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     std::cout << std::endl;
-    for (int i = 0; i < entries.size(); i++)
+    for (int i = 0; i < workingDir.size(); i++)
     {
-        std::cout << (entries[i]->file_name + '\0');
-        std::cout << " " << (entries[i]->first_blk + '\0') << std::endl;
+        std::cout << (workingDir[i]->file_name + '\0');
+        std::cout << " " << (workingDir[i]->first_blk + '\0') << std::endl;
     }
     uint8_t block[4096];
     disk.read(1, block);
-    for (int i = 0;i < 4096 && block[i] != '\0';i++)
+    for (int i = 0; i < 4096 && block[i] != '\0'; i++)
     {
     }
-    for (int i = 0;i < 10;i++)
+    for (int i = 0; i < 10; i++)
     {
         std::cout << fat[i] << ',';
     }
@@ -348,8 +448,8 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16
             // reset count so we can continue
             // writing the remaining file contents to the reset block
             count = 0;
-            //std::cout << "fatIndex: " << fatIndex << std::endl;
-            //std::cout << "prevIndex: " << prevIndex << std::endl;
+            // std::cout << "fatIndex: " << fatIndex << std::endl;
+            // std::cout << "prevIndex: " << prevIndex << std::endl;
         }
         // add each char from file contents into block.
         block[count] = contents[i];
@@ -399,8 +499,8 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents)
             // reset count so we can continue
             // writing the remaining file contents to the reset block
             count = 0;
-            //std::cout << "fatIndex: " << fatIndex << std::endl;
-            //std::cout << "prevIndex: " << prevIndex << std::endl;
+            // std::cout << "fatIndex: " << fatIndex << std::endl;
+            // std::cout << "prevIndex: " << prevIndex << std::endl;
         }
         // add each char from file contents into block.
         block[count] = contents[i];
@@ -421,7 +521,8 @@ int FS::create(std::string filepath)
 {
 
     // throw error if file already exists
-    if(fileExist(filepath)){
+    if (fileExist(filepath))
+    {
         return 1;
     }
 
@@ -462,8 +563,8 @@ int FS::create(std::string filepath)
     newEntry->size = contents.size();
     newEntry->access_rights = 0x06;
     newEntry->type = 0;
-    entries.push_back(newEntry);
-    std::cout << "Added contents to dir entries\n";
+    workingDir.push_back(newEntry);
+    std::cout << "Added contents to dir workingDir\n";
 
     updateFatRoot();
 
@@ -474,11 +575,12 @@ int FS::create(std::string filepath)
 int FS::cat(std::string filepath)
 {
     std::cout << "FS::cat(" << filepath << ")\n";
-    //Tries to find file in rootblock
+    // Tries to find file in rootblock
     uint16_t first_blk = findFileInRoot(filepath);
 
     // if file cannot be found, throw error.
-    if(first_blk == 0){
+    if (first_blk == 0)
+    {
         return 1;
     }
 
@@ -488,7 +590,7 @@ int FS::cat(std::string filepath)
     {
         std::cout << "Current Block Index: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        for (int i = 0;i < 4096 && block[i] != '\0';i++)
+        for (int i = 0; i < 4096 && block[i] != '\0'; i++)
         {
             std::cout << block[i];
         }
@@ -502,9 +604,9 @@ int FS::ls()
 {
     std::cout << "FS::ls()\n";
     std::cout << "name\tsize\n";
-    for (int i = 0;i < entries.size();i++)
+    for (int i = 0; i < workingDir.size(); i++)
     {
-        std::cout << entries[i]->file_name << '\t' << entries[i]->size << '\n';
+        std::cout << workingDir[i]->file_name << '\t' << workingDir[i]->size << '\n';
     }
     return 0;
 }
@@ -514,21 +616,23 @@ int FS::ls()
 int FS::cp(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::cp(" << sourcepath << "," << destpath << ")\n";
-    //Tries to find file in rootblock
+    // Tries to find file in rootblock
 
     uint16_t first_blk = 0;
     uint8_t block[4096];
     int dirEntryIndex = 0;
     std::string contents = "";
-    //Tries to find file in rootblock
+    // Tries to find file in rootblock
     first_blk = findFileInRoot(sourcepath);
 
     // if file cannot be found, throw error.
-    if(first_blk == 0){
+    if (first_blk == 0)
+    {
         return 1;
     }
     // throw error if destination file already exists
-    if(fileExist(destpath)){
+    if (fileExist(destpath))
+    {
         return 1;
     }
 
@@ -536,9 +640,9 @@ int FS::cp(std::string sourcepath, std::string destpath)
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
-        //std::cout << "fatIndex: " << fatIndex << std::endl;
+        // std::cout << "fatIndex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        for (int i = 0;i < 4096 && block[i] != '\0';i++)
+        for (int i = 0; i < 4096 && block[i] != '\0'; i++)
         {
             contents.push_back(block[i]);
         }
@@ -548,7 +652,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     first_blk = writeBlocksFromString(destpath, contents);
 
     // find sourcefile dir_entry
-    dirEntryIndex = findFileinEntries(sourcepath);
+    dirEntryIndex = findFileinworkingDir(sourcepath);
 
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
@@ -557,10 +661,10 @@ int FS::cp(std::string sourcepath, std::string destpath)
         newEntry->file_name[i] = destpath[i];
     }
     newEntry->first_blk = first_blk;
-    newEntry->size = entries[dirEntryIndex]->size;
-    newEntry->access_rights = entries[dirEntryIndex]->access_rights;
-    newEntry->type = entries[dirEntryIndex]->type;
-    entries.push_back(newEntry);
+    newEntry->size = workingDir[dirEntryIndex]->size;
+    newEntry->access_rights = workingDir[dirEntryIndex]->access_rights;
+    newEntry->type = workingDir[dirEntryIndex]->type;
+    workingDir.push_back(newEntry);
 
     // save to disk
     updateFatRoot();
@@ -573,18 +677,18 @@ int FS::cp(std::string sourcepath, std::string destpath)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
-    int entriesIndex = findFileinEntries(sourcepath);
-    if (entriesIndex != -1)
+    int workingDirIndex = findFileinworkingDir(sourcepath);
+    if (workingDirIndex != -1)
     {
         // reset filename to empty
-        for (int i = 0;i < 56;i++)
+        for (int i = 0; i < 56; i++)
         {
-            entries[entriesIndex]->file_name[i] = 0;
+            workingDir[workingDirIndex]->file_name[i] = 0;
         }
         // rename file
-        for (int i = 0;i < destpath.size() && i < 56;i++)
+        for (int i = 0; i < destpath.size() && i < 56; i++)
         {
-            entries[entriesIndex]->file_name[i] = destpath[i];
+            workingDir[workingDirIndex]->file_name[i] = destpath[i];
         }
     }
 
@@ -598,22 +702,23 @@ int FS::rm(std::string filepath)
 {
     std::cout << "FS::rm(" << filepath << ")\n";
     // if file doesnt exist throw error.
-    if(!fileExist(filepath)){
+    if (!fileExist(filepath))
+    {
         return 1;
     }
-    int entryIndex = findFileinEntries(filepath);
+    int entryIndex = findFileinworkingDir(filepath);
     uint16_t first_blk = findFileInRoot(filepath);
     int fatIndex = first_blk;
     int nextIndex = fatIndex;
     while (nextIndex != FAT_EOF && nextIndex != 0)
     {
-        std::cout << "Removing block: "<< fatIndex << "\n";
+        std::cout << "Removing block: " << fatIndex << "\n";
         nextIndex = fat[fatIndex];
         fat[fatIndex] = FAT_FREE;
         fatIndex = nextIndex;
     }
-    //Erases the dir entry from the vector
-    entries.erase(entries.begin() + entryIndex);
+    // Erases the dir entry from the vector
+    workingDir.erase(workingDir.begin() + entryIndex);
 
     updateFatRoot();
 
@@ -625,10 +730,10 @@ int FS::rm(std::string filepath)
 int FS::append(std::string filepath1, std::string filepath2)
 {
     std::cout << "FS::append(" << filepath1 << "," << filepath2 << ")\n";
-    int entryIndex = findFileinEntries(filepath1);
+    int entryIndex = findFileinworkingDir(filepath1);
     uint8_t block[4096];
 
-    int fatIndex = entries[entryIndex]->first_blk;
+    int fatIndex = workingDir[entryIndex]->first_blk;
     std::string contents;
     // String block
     std::string sBlock;
@@ -638,24 +743,25 @@ int FS::append(std::string filepath1, std::string filepath2)
     // Reads every block from sourcefile into string
     while (fatIndex != FAT_EOF)
     {
-        std::cout << "Iteration" << "\n";
+        std::cout << "Iteration"
+                  << "\n";
         disk.read(fatIndex, block);
         sBlock = (char *)block;
         contents.append(sBlock);
         fatIndex = fat[fatIndex];
     }
     contents.push_back('\0');
-    entryIndex = findFileinEntries(filepath2);
+    entryIndex = findFileinworkingDir(filepath2);
 
     // Returns last block in file and last index in the block
-    findEOF(entries[entryIndex]->first_blk, result);
+    findEOF(workingDir[entryIndex]->first_blk, result);
     int count = result[1];
     fatIndex = result[0];
     // Writes string into EOF block at the given position in the last block
     // (i.e., where the contents in the block ends)
     // and onwards into new blocks if needed
     writeBlocksFromString(filepath2, contents, fatIndex, count);
-    entries[entryIndex]->size += contents.size();
+    workingDir[entryIndex]->size += contents.size();
 
     updateFatRoot();
 
@@ -667,7 +773,6 @@ int FS::append(std::string filepath1, std::string filepath2)
 int FS::mkdir(std::string dirpath)
 {
     std::cout << "FS::mkdir(" << dirpath << ")\n";
-<<<<<<< HEAD
     int freeIndex = getFreeIndex();
     fat[freeIndex] = FAT_EOF;
     dir_entry *newEntry = new dir_entry;
@@ -679,13 +784,11 @@ int FS::mkdir(std::string dirpath)
     newEntry->size = '-';
     newEntry->access_rights = 0x06;
     newEntry->type = 1;
-    entries.push_back(newEntry);
-    std::cout << "Added contents to dir entries\n";
+    workingDir.push_back(newEntry);
+    std::cout << "Added contents to dir workingDir\n";
 
     updateFatRoot();
 
-=======
->>>>>>> 995ce852101ccd70970f87cd22552f066549013f
     return 0;
 }
 
