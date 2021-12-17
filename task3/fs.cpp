@@ -680,10 +680,34 @@ int FS::cat(std::string filepath)
 int FS::ls()
 {
     std::cout << "FS::ls()\n";
-    std::cout << "name\tsize\ttype\n";
+    std::cout << "name\ttype\tsize\n";
+    // if we are not in root, print the .. directory
+    if (branch != root)
+    {
+        std::cout
+            << "../"
+            << '\t' << "dir"
+            << '\t' << "-"
+            << '\n';
+    }
+    //print files and directories
     for (int i = 0; i < workingDir.size(); i++)
     {
-        std::cout << workingDir[i]->file_name << '\t' << workingDir[i]->size << '\t' << std::to_string(workingDir[i]->type) << '\n';
+        if (workingDir[i]->type == 1) {
+            // print dir
+            std::cout
+                << workingDir[i]->file_name
+                << '\t' << "dir"
+                << '\t' << (char)workingDir[i]->size
+                << '\n';
+        }else {
+            // print file
+            std::cout
+                << workingDir[i]->file_name
+                << '\t' << "file"
+                << '\t' << workingDir[i]->size
+                << '\n';
+        }
     }
     return 0;
 }
@@ -703,8 +727,8 @@ int FS::cp(std::string sourcepath, std::string destpath)
     srcEntryIndex = findIndexWorkingDir(sourcepath);
     dstEntryIndex = findIndexWorkingDir(destpath);
     // Tries to find file in rootblock
-    first_blk = workingDir[findIndexWorkingDir(sourcepath)]->first_blk;
-    uint16_t destBlk = workingDir[findIndexWorkingDir(destpath)]->first_blk;
+    first_blk = findBlockWorkingDir(sourcepath);
+    uint16_t destBlk = findBlockWorkingDir(destpath);
     // if file cannot be found, throw error.
     if (first_blk == 0)
     {
@@ -733,7 +757,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     first_blk = writeBlocksFromString(destpath, contents);
 
     // find sourcefile dir_entry
-    dirEntryIndex = findIndexWorkingDir(sourcepath);
+    dstEntryIndex = findIndexWorkingDir(sourcepath);
 
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
@@ -742,9 +766,9 @@ int FS::cp(std::string sourcepath, std::string destpath)
         newEntry->file_name[i] = destpath[i];
     }
     newEntry->first_blk = first_blk;
-    newEntry->size = workingDir[dirEntryIndex]->size;
-    newEntry->access_rights = workingDir[dirEntryIndex]->access_rights;
-    newEntry->type = workingDir[dirEntryIndex]->type;
+    newEntry->size = workingDir[dstEntryIndex]->size;
+    newEntry->access_rights = workingDir[dstEntryIndex]->access_rights;
+    newEntry->type = workingDir[dstEntryIndex]->type;
 
     if (workingDir[destBlk]->type == TYPE_DIR)
     {
