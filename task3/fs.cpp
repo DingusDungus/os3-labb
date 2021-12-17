@@ -389,7 +389,7 @@ void FS::writeWorkingDir(uint16_t blk)
 }
 
 // returns index in workingDir array, -1 if not found
-int FS::findFileinworkingDir(std::string filename)
+int FS::findIndexWorkingDir(std::string filename)
 {
     bool found = false;
     // Tries to find file in workingDir
@@ -408,7 +408,7 @@ int FS::findFileinworkingDir(std::string filename)
     return index;
 }
 // return index of first block
-int FS::findFileInRoot(std::string filename)
+int FS::findBlockWorkingDir(std::string filename)
 {
     bool found = false;
     // Tries to find file in rootblock
@@ -653,7 +653,7 @@ int FS::cat(std::string filepath)
 {
     std::cout << "FS::cat(" << filepath << ")\n";
     // Tries to find file in rootblock
-    uint16_t first_blk = findFileInRoot(filepath);
+    uint16_t first_blk = findBlockWorkingDir(filepath);
 
     // if file cannot be found, throw error.
     if (first_blk == 0)
@@ -697,11 +697,14 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
     uint16_t first_blk = 0;
     uint8_t block[4096];
-    int dirEntryIndex = 0;
+    int dstEntryIndex = 0;
+    int srcEntryIndex = 0;
     std::string contents = "";
+    srcEntryIndex = findIndexWorkingDir(sourcepath);
+    dstEntryIndex = findIndexWorkingDir(destpath);
     // Tries to find file in rootblock
-    first_blk = workingDir[findFileinworkingDir(sourcepath)]->first_blk;
-    uint16_t destBlk = workingDir[findFileinworkingDir(destpath)]->first_blk;
+    first_blk = workingDir[findIndexWorkingDir(sourcepath)]->first_blk;
+    uint16_t destBlk = workingDir[findIndexWorkingDir(destpath)]->first_blk;
     // if file cannot be found, throw error.
     if (first_blk == 0)
     {
@@ -730,7 +733,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     first_blk = writeBlocksFromString(destpath, contents);
 
     // find sourcefile dir_entry
-    dirEntryIndex = findFileinworkingDir(sourcepath);
+    dirEntryIndex = findIndexWorkingDir(sourcepath);
 
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
@@ -765,8 +768,8 @@ int FS::cp(std::string sourcepath, std::string destpath)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
-    int destIndex = findFileinworkingDir(destpath);
-    int srcIndex = findFileinworkingDir(sourcepath);
+    int destIndex = findIndexWorkingDir(destpath);
+    int srcIndex = findIndexWorkingDir(sourcepath);
     int destBlock = workingDir[destIndex]->first_blk;
     uint16_t branch_blk = branch->entry->first_blk;
 
@@ -791,7 +794,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     }
     else if (srcIndex != -1 && destIndex == -1)
     {
-        int workingDirIndex = findFileinworkingDir(sourcepath);
+        int workingDirIndex = findIndexWorkingDir(sourcepath);
         if (workingDirIndex != -1)
         {
             // reset filename to empty
@@ -821,7 +824,7 @@ int FS::rm(std::string filepath)
     {
         return 1;
     }
-    int entryIndex = findFileinworkingDir(filepath);
+    int entryIndex = findIndexWorkingDir(filepath);
     if (workingDir[entryIndex]->type == TYPE_FILE)
     {
         int fatIndex = workingDir[entryIndex]->first_blk;
@@ -859,7 +862,7 @@ int FS::rm(std::string filepath)
 int FS::append(std::string filepath1, std::string filepath2)
 {
     std::cout << "FS::append(" << filepath1 << "," << filepath2 << ")\n";
-    int entryIndex = findFileinworkingDir(filepath1);
+    int entryIndex = findIndexWorkingDir(filepath1);
     uint8_t block[4096];
 
     int fatIndex = workingDir[entryIndex]->first_blk;
@@ -880,7 +883,7 @@ int FS::append(std::string filepath1, std::string filepath2)
         fatIndex = fat[fatIndex];
     }
     contents.push_back('\0');
-    entryIndex = findFileinworkingDir(filepath2);
+    entryIndex = findIndexWorkingDir(filepath2);
 
     // Returns last block in file and last index in the block
     findEOF(workingDir[entryIndex]->first_blk, result);
@@ -935,7 +938,7 @@ int FS::cd(std::string dirpath)
 {
 
     std::cout << "FS::cd(" << dirpath << ")\n";
-    int index = findFileinworkingDir(dirpath);
+    int index = findIndexWorkingDir(dirpath);
     if (index == -1 && dirpath != "..")
     {
         return 1;

@@ -77,9 +77,9 @@ private:
     int writeBlocksFromString
         (std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);
     // return index of first block, 0 if not found
-    int findFileInRoot(std::string filename);
+    int findBlockWorkingDir(std::string filename);
     // returns index in workingDir array, -1 if not found
-    int findFileinworkingDir(std::string filename);
+    int findIndexWorkingDir(std::string filename);
     // check if file exists
     bool fileExist(std::string filename);
     // Finds end of file both block index and end in said block
