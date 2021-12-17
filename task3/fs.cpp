@@ -1035,6 +1035,12 @@ int FS::cd(std::string dirpath)
 int FS::pwd()
 {
     std::cout << "FS::pwd()\n";
+    // if we are in root, just print a /
+    if (currentNode == currentNode->parent)
+    {
+        std::cout << '/' << std::endl;
+        return 0;
+    }
     treeNode *walker = currentNode;
     std::vector<std::string> path;
     while (walker->parent != walker)
@@ -1045,10 +1051,6 @@ int FS::pwd()
     for (int i = path.size() - 1; i >= 0; i--)
     {
         std::cout << '/' + path[i];
-    }
-    if (currentNode == currentNode->parent)
-    {
-        std::cout << '/';
     }
     std::cout << std::endl;
     return 0;
