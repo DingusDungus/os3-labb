@@ -18,6 +18,13 @@
 #define WRITE 0x02
 #define EXECUTE 0x01
 
+
+// TODO
+// prevent CP copying file into a dir where a file of that name already exists.
+// same as above for MV
+// make it possible to MV/CP files to the directory above ".."
+// FIX MEMORY POINTER UNINTIALIZED SUPER AIDS
+
 struct dir_entry {
     char file_name[56]; // name of the file / sub-directory
     uint32_t size; // size of the file in bytes
