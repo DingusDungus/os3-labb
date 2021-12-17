@@ -55,9 +55,10 @@ private:
     int16_t fat[BLOCK_SIZE/2];
     // size of a dir_entry is 64 bytes
     std::vector<dir_entry*> workingDir;
-    treeNode *root;
-    treeNode *branch;
+    treeNode *root = nullptr;
+    treeNode *CurrentNode = nullptr;
 
+    void clearWorkingDir();
     void updateFat();
     void readInFatRoot();
     void initWorkingDir(uint16_t blk);

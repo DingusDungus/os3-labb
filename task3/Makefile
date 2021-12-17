@@ -18,5 +18,8 @@ disk.o: disk.cpp disk.h
 debug:	main.o shell.o fs.o disk.o
 	clang++ -std=c++11 -o filesystem main.o shell.o disk.o fs.o -fsanitize=memory -fno-omit-frame-pointer
 
+clang:	main.o shell.o fs.o disk.o
+	clang++ -std=c++11 -o filesystem main.o shell.o disk.o fs.o -Wall
+
 clean:
 	rm filesystem main.o shell.o fs.o disk.o
