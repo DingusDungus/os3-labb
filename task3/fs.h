@@ -56,7 +56,7 @@ private:
     // size of a dir_entry is 64 bytes
     std::vector<dir_entry*> workingDir;
     treeNode *root = nullptr;
-    treeNode *CurrentNode = nullptr;
+    treeNode *currentNode = nullptr;
 
     void clearWorkingDir();
     void updateFat();

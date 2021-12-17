@@ -19,6 +19,14 @@ FS::~FS()
     delete root;
 }
 
+void FS::clearWorkingDir()
+{
+    for (int i = 0; i < workingDir.size(); i++) {
+        delete workingDir[i];
+    }
+    workingDir.clear();
+}
+
 int FS::getSecondNum(uint16_t num)
 {
     int i;
@@ -235,13 +243,17 @@ void FS::changeWorkingDir(uint16_t blk)
 
     uint8_t block[4096];
 
-    for (int i = 0; i < CurrentNode->children.size(); i++)
-    {
-        if (CurrentNode->children[i]->entry->first_blk == blk)
+    if (blk != ROOT_BLOCK){
+        for (int i = 0; i < currentNode->children.size(); i++)
         {
-            CurrentNode = CurrentNode->children[i];
-            break;
+            if (currentNode->children[i]->entry->first_blk == blk)
+            {
+                currentNode = currentNode->children[i];
+                break;
+            }
         }
+    }else{
+        currentNode = root;
     }
 
     workingDir.clear();
@@ -311,7 +323,7 @@ void FS::initTree()
     initTreeContinued(root);
     initWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
-    this->CurrentNode = this->root;
+    this->currentNode = this->root;
 }
 
 void FS::initTreeContinued(treeNode *pBranch)
@@ -459,7 +471,7 @@ int FS::format()
     workingDir.clear();
 
     updateFat();
-    CurrentNode = root;
+    currentNode = root;
     initWorkingDir(0);
 
     return 0;
@@ -674,7 +686,7 @@ int FS::create(std::string filepath)
     workingDir.push_back(newEntry);
     std::cout << "Added contents to dir workingDir\n";
 
-    writeWorkingDir(CurrentNode->entry->first_blk);
+    writeWorkingDir(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -713,7 +725,7 @@ int FS::ls()
     std::cout << "FS::ls()\n";
     std::cout << "name\ttype\tsize\n";
     // if we are not in root, print the .. directory
-    if (CurrentNode != root)
+    if (currentNode != root)
     {
         std::cout
             << "../"
@@ -795,7 +807,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
         std::cout << "destination is a directory" << std::endl;
 
-        uint16_t prevDir = CurrentNode->entry->first_blk;
+        uint16_t prevDir = currentNode->entry->first_blk;
         initWorkingDir(destBlk);
         workingDir.push_back(newEntry);
         writeWorkingDir(destBlk);
@@ -816,7 +828,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     }
 
     // save to disk
-    writeWorkingDir(CurrentNode->entry->first_blk);
+    writeWorkingDir(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -829,7 +841,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     int destIndex = findIndexWorkingDir(destpath);
     int srcIndex = findIndexWorkingDir(sourcepath);
     int destBlock = workingDir[destIndex]->first_blk;
-    uint16_t branch_blk = CurrentNode->entry->first_blk;
+    uint16_t branch_blk = currentNode->entry->first_blk;
 
     if (destIndex != -1 && srcIndex != -1 && workingDir[destIndex]->type == TYPE_DIR)
     {
@@ -844,11 +856,11 @@ int FS::mv(std::string sourcepath, std::string destpath)
         fileEntry->access_rights = workingDir[srcIndex]->access_rights;
 
         workingDir.erase(workingDir.begin() + srcIndex);
-        writeWorkingDir(CurrentNode->entry->first_blk);
+        writeWorkingDir(currentNode->entry->first_blk);
         initWorkingDir(workingDir[destIndex]->first_blk);
         workingDir.push_back(fileEntry);
         writeWorkingDir(destBlock);
-        initWorkingDir(CurrentNode->entry->first_blk);
+        initWorkingDir(currentNode->entry->first_blk);
     }
     else if (srcIndex != -1 && destIndex == -1)
     {
@@ -868,7 +880,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
         }
     }
 
-    writeWorkingDir(CurrentNode->entry->first_blk);
+    writeWorkingDir(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -910,7 +922,7 @@ int FS::rm(std::string filepath)
         }
     }
 
-    writeWorkingDir(CurrentNode->entry->first_blk);
+    writeWorkingDir(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -953,7 +965,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     writeBlocksFromString(filepath2, contents, fatIndex, count);
     workingDir[entryIndex]->size += contents.size();
 
-    writeWorkingDir(CurrentNode->entry->first_blk);
+    writeWorkingDir(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -983,10 +995,10 @@ int FS::mkdir(std::string dirpath)
     workingDir.push_back(newEntry);
     std::cout << "Added contents to dir workingDir\n";
 
-    treeNode *newBranch = new treeNode(CurrentNode, newEntry);
-    CurrentNode->children.push_back(newBranch);
+    treeNode *newBranch = new treeNode(currentNode, newEntry);
+    currentNode->children.push_back(newBranch);
 
-    writeWorkingDir(CurrentNode->entry->first_blk);
+    writeWorkingDir(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -1003,17 +1015,17 @@ int FS::cd(std::string dirpath)
     }
     if (dirpath == "..")
     {
-        std::cout << CurrentNode->entry->file_name << std::endl;
-        CurrentNode = CurrentNode->parent;
-        initWorkingDir(CurrentNode->entry->first_blk);
-        std::cout << CurrentNode->entry->file_name << std::endl;
+        std::cout << currentNode->entry->file_name << std::endl;
+        currentNode = currentNode->parent;
+        initWorkingDir(currentNode->entry->first_blk);
+        std::cout << currentNode->entry->file_name << std::endl;
     }
     else if (workingDir[index]->type == TYPE_DIR)
     {
-        std::cout << CurrentNode->entry->file_name << std::endl;
+        std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
 
-        std::cout << CurrentNode->entry->file_name << std::endl;
+        std::cout << currentNode->entry->file_name << std::endl;
     }
 
     return 0;
@@ -1024,7 +1036,7 @@ int FS::cd(std::string dirpath)
 int FS::pwd()
 {
     std::cout << "FS::pwd()\n";
-    treeNode *walker = CurrentNode;
+    treeNode *walker = currentNode;
     std::vector<std::string> path;
     while (walker->parent != walker)
     {
@@ -1035,7 +1047,7 @@ int FS::pwd()
     {
         std::cout << '/' + path[i];
     }
-    if (CurrentNode = CurrentNode->parent)
+    if (currentNode = currentNode->parent)
     {
         std::cout << '/';
     }
