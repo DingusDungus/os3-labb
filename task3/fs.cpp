@@ -684,7 +684,7 @@ int FS::create(std::string filepath)
     newEntry->access_rights = 0x06;
     newEntry->type = 0;
     workingDir.push_back(newEntry);
-    std::cout << "Added contents to dir workingDir\n";
+    std::cout << "Added file to dir: " << currentNode->entry->file_name << std::endl;
 
     writeWorkingDir(currentNode->entry->first_blk);
 
@@ -993,7 +993,7 @@ int FS::mkdir(std::string dirpath)
     newEntry->access_rights = 0x06;
     newEntry->type = 1;
     workingDir.push_back(newEntry);
-    std::cout << "Added contents to dir workingDir\n";
+    std::cout << "Added contents to dir: " << dirpath << std::endl;
 
     treeNode *newBranch = new treeNode(currentNode, newEntry);
     currentNode->children.push_back(newBranch);
@@ -1024,7 +1024,6 @@ int FS::cd(std::string dirpath)
     {
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
-
         std::cout << currentNode->entry->file_name << std::endl;
     }
 
@@ -1047,7 +1046,7 @@ int FS::pwd()
     {
         std::cout << '/' + path[i];
     }
-    if (currentNode = currentNode->parent)
+    if (currentNode == currentNode->parent)
     {
         std::cout << '/';
     }
