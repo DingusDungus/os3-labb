@@ -592,7 +592,7 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents)
     return firstFatIndex;
 }
 
-dir_entry* FS::copyDir(dir_entry* dir, std::string name)
+dir_entry* FS::copyDirEntry(dir_entry* dir, std::string name)
 {
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
@@ -608,6 +608,20 @@ dir_entry* FS::copyDir(dir_entry* dir, std::string name)
     return newEntry;
 }
 
+dir_entry* FS::copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk){
+    // copy over the dir entry
+    dir_entry *newEntry = new dir_entry;
+    for (int i = 0; i < 56 && i < name.size() + 1; i++)
+    {
+        newEntry->file_name[i] = name[i];
+    }
+    newEntry->first_blk = first_blk;
+    newEntry->size = dir->size;
+    newEntry->access_rights = dir->access_rights;
+    newEntry->type = dir->type;
+
+    return newEntry;
+}
 // create <filepath> creates a new file on the disk, the data content is
 // written on the following rows (ended with an empty row)
 int FS::create(std::string filepath)

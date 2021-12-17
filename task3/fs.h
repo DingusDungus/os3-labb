@@ -65,7 +65,8 @@ private:
     void initTree();
     void initTreeContinued(treeNode *branch);
     void writeWorkingDir(uint16_t blk);
-    dir_entry* copyDir(dir_entry* dir, std::string name);
+    dir_entry* copyDirEntry(dir_entry* dir, std::string name);
+    dir_entry* copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk);
 
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
     void convert16to8(uint16_t num, uint8_t * result);
