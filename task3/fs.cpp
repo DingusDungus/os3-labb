@@ -759,13 +759,12 @@ int FS::cp(std::string sourcepath, std::string destpath)
     // Tries to find file in rootblock
     first_blk = findBlockWorkingDir(sourcepath);
     uint16_t destBlk = findBlockWorkingDir(destpath);
-    // if file cannot be found, throw error.
-    if (first_blk == 0)
+    // if source file cannot be found, or is a directory throw error.
+    if (!fileExist(sourcepath) || workingDir[srcEntryIndex]->type == TYPE_DIR)
     {
         return 1;
     }
     // throw error if destination already exists and is a file
-    std::cout << "Hello\n";
     if (fileExist(destpath) && workingDir[dstEntryIndex]->type == TYPE_FILE)
     {
         return 1;
@@ -783,31 +782,35 @@ int FS::cp(std::string sourcepath, std::string destpath)
         }
         fatIndex = fat[fatIndex];
     }
-    // create new file and save its first block.
-    first_blk = writeBlocksFromString(destpath, contents);
 
-    // find sourcefile dir_entry
-    dstEntryIndex = findIndexWorkingDir(sourcepath);
-
-    // copy over the dir entry
-    dir_entry *newEntry = new dir_entry;
-    for (int i = 0; i < 56 && i < destpath.size() + 1; i++)
+    // if destination exists and is a directory
+    if (fileExist(destpath) && workingDir[dstEntryIndex]->type == TYPE_DIR)
     {
-        newEntry->file_name[i] = destpath[i];
-    }
-    newEntry->first_blk = first_blk;
-    newEntry->size = workingDir[dstEntryIndex]->size;
-    newEntry->access_rights = workingDir[dstEntryIndex]->access_rights;
-    newEntry->type = workingDir[dstEntryIndex]->type;
+        // copy to a directory
+        // create new file and save its first block. for file to dir copy
+        first_blk = writeBlocksFromString(sourcepath, contents);
+        // copy over the dir entry, for file to file copy
+        dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex],sourcepath,first_blk);
 
-    if (workingDir[destBlk]->type == TYPE_DIR)
-    {
+        std::cout << "destination is a directory" << std::endl;
+
+        uint16_t prevDir = branch->entry->first_blk;
         initWorkingDir(destBlk);
         workingDir.push_back(newEntry);
-        initWorkingDir(branch->entry->first_blk);
+        writeWorkingDir(destBlk);
+        initWorkingDir(prevDir);
     }
+    //otherwise we just copy file in currentDir
     else
     {
+        // just copying file in current dir
+        // create new file and save its first block. for file to file copy
+        first_blk = writeBlocksFromString(destpath, contents);
+        // copy over the dir entry, for file to file copy
+        dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex],destpath,first_blk);
+
+        std::cout << "destination is currentDir" << std::endl;
+
         workingDir.push_back(newEntry);
     }
 
