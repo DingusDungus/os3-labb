@@ -693,7 +693,7 @@ int FS::ls()
     //print files and directories
     for (int i = 0; i < workingDir.size(); i++)
     {
-        if (workingDir[i]->type == 1) {
+        if (workingDir[i]->type == TYPE_DIR) {
             // print dir
             std::cout
                 << workingDir[i]->file_name
