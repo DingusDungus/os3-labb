@@ -499,6 +499,7 @@ void FS::testDisk()
         std::cout << workingDir[i]->file_name << " " << workingDir[i]->first_blk << " " << std::to_string(workingDir[i]->type);
         std::cout << std::endl;
     }
+    std::cout << "current dir " << currentNode->entry->file_name << " block: " << currentNode->entry->first_blk << std::endl;
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -565,6 +566,9 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents)
     int fatIndex = 0;
     fatIndex = getFreeIndex();
     firstFatIndex = fatIndex;
+    // add null termination to content
+    contents.push_back('\0');
+
     for (int i = 0; i < contents.size(); i++)
     {
         // if file is bigger than size of 1 block (4096 bytes)
@@ -609,7 +613,8 @@ dir_entry* FS::copyDirEntry(dir_entry* dir, std::string name)
 {
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
-    for (int i = 0; i < 56 && i < name.size() + 1; i++)
+    name.push_back('\0');
+    for (int i = 0; i < 56 && i < name.size(); i++)
     {
         newEntry->file_name[i] = name[i];
     }
@@ -624,7 +629,8 @@ dir_entry* FS::copyDirEntry(dir_entry* dir, std::string name)
 dir_entry* FS::copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk){
     // copy over the dir entry
     dir_entry *newEntry = new dir_entry;
-    for (int i = 0; i < 56 && i < name.size() + 1; i++)
+    name.push_back('\0');
+    for (int i = 0; i < 56 && i < name.size(); i++)
     {
         newEntry->file_name[i] = name[i];
     }
@@ -673,9 +679,11 @@ int FS::create(std::string filepath)
     firstFatIndex = writeBlocksFromString(filepath, contents);
 
     std::cout << "Added contents to blocks\n";
+    std::cout << "Wrote file to blk: " << firstFatIndex << std::endl;
 
     dir_entry *newEntry = new dir_entry;
-    for (int i = 0; i < 56 && i < filepath.size() + 1; i++)
+    filepath.push_back('\0');
+    for (int i = 0; i < 56 && i < filepath.size(); i++)
     {
         newEntry->file_name[i] = filepath[i];
     }
@@ -772,6 +780,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     // Tries to find file in rootblock
     first_blk = findBlockWorkingDir(sourcepath);
     uint16_t destBlk = findBlockWorkingDir(destpath);
+    uint16_t prevBlock = currentNode->entry->first_blk;
     // if source file cannot be found, or is a directory throw error.
     if (!fileExist(sourcepath) || workingDir[srcEntryIndex]->type == TYPE_DIR)
     {
@@ -805,13 +814,13 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // copy over the dir entry, for file to file copy
         dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex],sourcepath,first_blk);
 
-        std::cout << "destination is a directory" << std::endl;
+        std::cout << "current block block is: " << prevBlock << std::endl;
+        std::cout << "destination is block: " << destBlk << std::endl;
 
-        uint16_t prevDir = currentNode->entry->first_blk;
         initWorkingDir(destBlk);
         workingDir.push_back(newEntry);
         writeWorkingDir(destBlk);
-        initWorkingDir(prevDir);
+        initWorkingDir(prevBlock);
     }
     //otherwise we just copy file in currentDir
     else
@@ -841,26 +850,22 @@ int FS::mv(std::string sourcepath, std::string destpath)
     int destIndex = findIndexWorkingDir(destpath);
     int srcIndex = findIndexWorkingDir(sourcepath);
     int destBlock = workingDir[destIndex]->first_blk;
-    uint16_t branch_blk = currentNode->entry->first_blk;
+    uint16_t srcBlock = currentNode->entry->first_blk;
 
     if (destIndex != -1 && srcIndex != -1 && workingDir[destIndex]->type == TYPE_DIR)
     {
-        dir_entry *fileEntry = new dir_entry;
-        for (int i = 0; i < 56 && i < destpath.size() + 1; i++)
-        {
-            fileEntry->file_name[i] = workingDir[srcIndex]->file_name[i];
-        }
-        fileEntry->size = workingDir[srcIndex]->size;
-        fileEntry->type = workingDir[srcIndex]->type;
-        fileEntry->first_blk = workingDir[srcIndex]->first_blk;
-        fileEntry->access_rights = workingDir[srcIndex]->access_rights;
+        // copy over the dir entry, for file to file copy
+        dir_entry *fileEntry = copyDirEntry(workingDir[srcIndex],sourcepath);
+
+        std::cout << "current block is: " << srcBlock << std::endl;
+        std::cout << "destination is block: " << destBlock << std::endl;
 
         workingDir.erase(workingDir.begin() + srcIndex);
-        writeWorkingDir(currentNode->entry->first_blk);
-        initWorkingDir(workingDir[destIndex]->first_blk);
+        writeWorkingDir(srcBlock);
+        initWorkingDir(destBlock);
         workingDir.push_back(fileEntry);
         writeWorkingDir(destBlock);
-        initWorkingDir(currentNode->entry->first_blk);
+        initWorkingDir(srcBlock);
     }
     else if (srcIndex != -1 && destIndex == -1)
     {
@@ -983,8 +988,10 @@ int FS::mkdir(std::string dirpath)
     }
     disk.write(freeIndex, block);
     fat[freeIndex] = FAT_EOF;
+    std::cout << "Wrote directory to blk: " << freeIndex << std::endl;
     dir_entry *newEntry = new dir_entry;
-    for (int i = 0; i < 56 && i < dirpath.size() + 1; i++)
+    dirpath.push_back('\0');
+    for (int i = 0; i < 56 && i < dirpath.size(); i++)
     {
         newEntry->file_name[i] = dirpath[i];
     }
