@@ -64,7 +64,9 @@ private:
     std::vector<dir_entry*> workingDir;
     treeNode *root = nullptr;
     treeNode *currentNode = nullptr;
-
+    void cleanUp();
+    void cleanUpDirs(treeNode* branch);
+    void cleanUpFiles();
     void clearWorkingDir();
     void updateFat();
     void readInFatRoot();

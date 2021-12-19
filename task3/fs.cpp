@@ -3,6 +3,8 @@
 #include <string>
 #include "fs.h"
 
+#pragma pack(1)
+
 FS::FS()
 {
     std::cout << "FS::FS()... Creating file system\n";
@@ -16,7 +18,39 @@ FS::~FS()
     updateFat();
     changeWorkingDir(0);
     writeWorkingDir(0);
+    cleanUp();
     delete root;
+}
+
+void FS::cleanUpFiles()
+{
+    for (int i = 0;i < workingDir.size();i++)
+    {
+        if (workingDir[i]->type == TYPE_FILE)
+        {
+            delete workingDir[i];
+        }
+    }
+}
+
+void FS::cleanUpDirs(treeNode *branch)
+{
+    std::cout << branch->entry->file_name << std::endl;
+    for (int i = 0;i < branch->children.size();i++)
+    {
+        cleanUpDirs(branch->children[i]);
+    }
+    if (branch != root)
+    {
+        delete branch->entry;
+        delete branch;
+    }
+}
+
+void FS::cleanUp()
+{
+    cleanUpFiles();
+    cleanUpDirs(root);
 }
 
 void FS::clearWorkingDir()
@@ -94,6 +128,10 @@ void FS::updateFat()
     uint8_t block[4096];
     uint8_t bit16[2];
     uint8_t bit32[4];
+    for (int i = 0;i < 4096;i++)
+    {
+        block[i] = 0;
+    }
     disk.write(1, block);
     int x = 0;
     // take each FAT array entry and split it into two 8bit (1 byte)
@@ -312,6 +350,10 @@ void FS::initTree()
     root = new treeNode;
     root->parent = root;
     dir_entry *newDir = new dir_entry;
+    for (int i = 0;i < 56;i++)
+    {
+        newDir->file_name[i] = '\0';
+    }
     newDir->file_name[0] = '/';
     newDir->first_blk = ROOT_BLOCK;
     newDir->size = '-';
@@ -329,6 +371,10 @@ void FS::initTree()
 void FS::initTreeContinued(treeNode *pBranch)
 {
     int size = workingDir.size();
+    for (int i = 0;i < 56;i++)
+    {
+        pBranch->entry->file_name[i] = '\0';
+    }
     std::cout << pBranch->entry->file_name << std::endl;
     for (int i = 0; i < size; i++)
     {
@@ -500,6 +546,11 @@ void FS::testDisk()
         std::cout << std::endl;
     }
     std::cout << "current dir " << currentNode->entry->file_name << " block: " << currentNode->entry->first_blk << std::endl;
+    for (int i = 0;i < currentNode->children.size();i++)
+    {
+        std::cout << currentNode->children[i]->entry->file_name << std::endl;
+    }
+    std::cout << "Children of: " << currentNode->entry->file_name << std::endl;
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -710,6 +761,11 @@ int FS::cat(std::string filepath)
     if (first_blk == 0)
     {
         return 1;
+    }
+    int index = findIndexWorkingDir(filepath);
+    if (workingDir[index]->type == TYPE_DIR)
+    {
+        return 2;
     }
 
     uint8_t block[4096];
