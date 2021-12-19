@@ -185,6 +185,10 @@ void FS::readInFatRoot()
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
+        for (int i = 0;i < 56;i++)
+        {
+            newDir->file_name[i] = '\0';
+        }
         for (int j = 0; j < 56; j++)
         {
             newDir->file_name[j] = block[x];
@@ -222,9 +226,10 @@ void FS::readInFatRoot()
 void FS::initWorkingDir(uint16_t blk)
 {
     updateFat();
+    cleanUpFiles();
+    workingDir.clear();
 
     uint8_t block[4096];
-    workingDir.clear();
     // read the dir_entry block into block array
     disk.read(blk, block);
     dir_entry *newDir;
@@ -237,7 +242,7 @@ void FS::initWorkingDir(uint16_t blk)
         // reset x to point to the first byte of the next dir entry
         int x = i;
         // create a new dir
-        newDir = new dir_entry;
+        newDir = new dir_entry();
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
@@ -294,6 +299,7 @@ void FS::changeWorkingDir(uint16_t blk)
         currentNode = root;
     }
 
+    cleanUpFiles();
     workingDir.clear();
     // read the dir_entry block into block array
     disk.read(blk, block);
@@ -307,7 +313,7 @@ void FS::changeWorkingDir(uint16_t blk)
         // reset x to point to the first byte of the next dir entry
         int x = i;
         // create a new dir
-        newDir = new dir_entry;
+        newDir = new dir_entry();
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
@@ -349,7 +355,7 @@ void FS::initTree()
 {
     root = new treeNode;
     root->parent = root;
-    dir_entry *newDir = new dir_entry;
+    dir_entry *newDir = new dir_entry();
     for (int i = 0;i < 56;i++)
     {
         newDir->file_name[i] = '\0';
@@ -361,7 +367,6 @@ void FS::initTree()
     newDir->access_rights = READ + WRITE;
     root->entry = newDir;
     int size = workingDir.size();
-    initWorkingDir(ROOT_BLOCK);
     initTreeContinued(root);
     initWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
@@ -371,11 +376,9 @@ void FS::initTree()
 void FS::initTreeContinued(treeNode *pBranch)
 {
     int size = workingDir.size();
-    for (int i = 0;i < 56;i++)
-    {
-        pBranch->entry->file_name[i] = '\0';
-    }
+
     std::cout << pBranch->entry->file_name << std::endl;
+
     for (int i = 0; i < size; i++)
     {
         if (workingDir[i]->type == TYPE_DIR)
