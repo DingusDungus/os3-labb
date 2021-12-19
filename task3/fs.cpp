@@ -56,6 +56,7 @@ void FS::cleanUp()
 void FS::clearWorkingDir()
 {
     for (int i = 0; i < workingDir.size(); i++) {
+        if(workingDir[i] != currentNode->entry && workingDir[i] != root->entry)
         delete workingDir[i];
     }
     workingDir.clear();
@@ -499,8 +500,15 @@ int FS::format()
 {
     changeWorkingDir(0);
     uint8_t block[4096];
-    disk.write(0, block);
-    disk.write(1, block);
+    // reset the block array
+    for (int i = 0; i < 4096; i++)
+    {
+        block[i] = 0;
+    }
+    // overwrite all blocks
+    for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+        disk.write(i, block);
+    }
     fat[ROOT_BLOCK] = FAT_EOF;
     fat[FAT_BLOCK] = FAT_EOF;
     for (int i = 2; i < BLOCK_SIZE / 2; i++)
