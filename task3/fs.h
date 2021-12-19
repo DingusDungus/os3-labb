@@ -88,7 +88,7 @@ private:
     //Writes to already existing block from string
     int writeBlocksFromString
         (std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);
-    // return index of first block, 0 if not found
+    // return index of first block, -1 if not found
     int findBlockWorkingDir(std::string filename);
     // returns index in workingDir array, -1 if not found
     int findIndexWorkingDir(std::string filename);
