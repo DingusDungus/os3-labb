@@ -26,11 +26,11 @@
 // FIX MEMORY POINTER UNINTIALIZED SUPER AIDS
 
 struct dir_entry {
-    char file_name[56]; // name of the file / sub-directory
-    uint32_t size; // size of the file in bytes
-    uint16_t first_blk; // index in the FAT for the first block of the file
-    uint8_t type; // directory (1) or file (0)
-    uint8_t access_rights; // read (0x04), write (0x02), execute (0x01)
+    char file_name[56] = ""; // name of the file / sub-directory
+    uint32_t size = 0; // size of the file in bytes
+    uint16_t first_blk = 0; // index in the FAT for the first block of the file
+    uint8_t type = 0; // directory (1) or file (0)
+    uint8_t access_rights = 0; // read (0x04), write (0x02), execute (0x01)
 };
 
 struct treeNode
@@ -88,7 +88,7 @@ private:
     //Writes to already existing block from string
     int writeBlocksFromString
         (std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);
-    // return index of first block, 0 if not found
+    // return index of first block, -1 if not found
     int findBlockWorkingDir(std::string filename);
     // returns index in workingDir array, -1 if not found
     int findIndexWorkingDir(std::string filename);

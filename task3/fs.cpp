@@ -56,6 +56,7 @@ void FS::cleanUp()
 void FS::clearWorkingDir()
 {
     for (int i = 0; i < workingDir.size(); i++) {
+        if(workingDir[i] != currentNode->entry && workingDir[i] != root->entry)
         delete workingDir[i];
     }
     workingDir.clear();
@@ -355,12 +356,17 @@ void FS::initTree()
 {
     root = new treeNode;
     root->parent = root;
+<<<<<<< HEAD
     dir_entry *newDir = new dir_entry();
     for (int i = 0;i < 56;i++)
     {
         newDir->file_name[i] = '\0';
     }
+=======
+    dir_entry *newDir = new dir_entry;
+>>>>>>> 78121e63aaa9f5f635c44f3cc0e9a10e7fbcfae8
     newDir->file_name[0] = '/';
+    newDir->file_name[1] = '\0';
     newDir->first_blk = ROOT_BLOCK;
     newDir->size = '-';
     newDir->type = TYPE_DIR;
@@ -376,7 +382,10 @@ void FS::initTree()
 void FS::initTreeContinued(treeNode *pBranch)
 {
     int size = workingDir.size();
+<<<<<<< HEAD
 
+=======
+>>>>>>> 78121e63aaa9f5f635c44f3cc0e9a10e7fbcfae8
     std::cout << pBranch->entry->file_name << std::endl;
 
     for (int i = 0; i < size; i++)
@@ -469,7 +478,7 @@ int FS::findIndexWorkingDir(std::string filename)
     // return index
     return index;
 }
-// return index of first block
+// return index of first block, -1 if not found.
 int FS::findBlockWorkingDir(std::string filename)
 {
     bool found = false;
@@ -485,7 +494,10 @@ int FS::findBlockWorkingDir(std::string filename)
         }
     }
     // return index of first block
-    return first_blk;
+    if(found){
+        return first_blk;
+    }
+    return -1;
 }
 
 bool FS::fileExist(std::string filename)
@@ -509,8 +521,15 @@ int FS::format()
 {
     changeWorkingDir(0);
     uint8_t block[4096];
-    disk.write(0, block);
-    disk.write(1, block);
+    // reset the block array
+    for (int i = 0; i < 4096; i++)
+    {
+        block[i] = 0;
+    }
+    // overwrite all blocks
+    for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+        disk.write(i, block);
+    }
     fat[ROOT_BLOCK] = FAT_EOF;
     fat[FAT_BLOCK] = FAT_EOF;
     for (int i = 2; i < BLOCK_SIZE / 2; i++)
@@ -758,10 +777,10 @@ int FS::cat(std::string filepath)
 {
     std::cout << "FS::cat(" << filepath << ")\n";
     // Tries to find file in rootblock
-    uint16_t first_blk = findBlockWorkingDir(filepath);
+    int first_blk = findBlockWorkingDir(filepath);
 
     // if file cannot be found, throw error.
-    if (first_blk == 0)
+    if (first_blk == -1)
     {
         return 1;
     }
@@ -834,6 +853,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     int dstEntryIndex = 0;
     int srcEntryIndex = 0;
     std::string contents = "";
+    uint8_t destType = 0;
     srcEntryIndex = findIndexWorkingDir(sourcepath);
     dstEntryIndex = findIndexWorkingDir(destpath);
     // Tries to find file in rootblock
@@ -850,6 +870,20 @@ int FS::cp(std::string sourcepath, std::string destpath)
     {
         return 1;
     }
+    // if dest file not found, dont set destType
+    if(dstEntryIndex != -1){
+        uint8_t destType = workingDir[dstEntryIndex]->type;
+    }
+
+    if(destpath == "..")
+    {
+        // set parents block as destination
+        destBlk = currentNode->parent->entry->first_blk;
+        // set type as a directory
+        destType = 1;
+        // set destIndex to -2 to pass exists check.
+        dstEntryIndex = -2;
+    }
 
     // read in all the from the sourcefile blocks to contents.
     int fatIndex = first_blk;
@@ -865,7 +899,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     }
 
     // if destination exists and is a directory
-    if (fileExist(destpath) && workingDir[dstEntryIndex]->type == TYPE_DIR)
+    if (fileExist(destpath) || dstEntryIndex == -2 && destType == TYPE_DIR)
     {
         // copy to a directory
         // create new file and save its first block. for file to dir copy
@@ -908,12 +942,28 @@ int FS::mv(std::string sourcepath, std::string destpath)
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
     int destIndex = findIndexWorkingDir(destpath);
     int srcIndex = findIndexWorkingDir(sourcepath);
-    int destBlock = workingDir[destIndex]->first_blk;
+    int destBlock = findBlockWorkingDir(destpath);
     uint16_t srcBlock = currentNode->entry->first_blk;
+    uint8_t destType = 0;
+    // if dest file not found, dont set destType
+    if(destIndex != -1){
+        destType = workingDir[destIndex]->type;
+    }
 
-    if (destIndex != -1 && srcIndex != -1 && workingDir[destIndex]->type == TYPE_DIR)
+    if(destpath == "..")
+    {
+        // set parents block as destination
+        destBlock = currentNode->parent->entry->first_blk;
+        // set type as a directory
+        destType = 1;
+        // set destIndex to -2 to pass exists check.
+        destIndex = -2;
+    }
+
+    if (destIndex != -1 && srcIndex != -1 && destType == TYPE_DIR)
     {
         // copy over the dir entry, for file to file copy
+        std::cout << "Moving file..." << std::endl;
         dir_entry *fileEntry = copyDirEntry(workingDir[srcIndex],sourcepath);
 
         std::cout << "current block is: " << srcBlock << std::endl;
@@ -928,6 +978,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     }
     else if (srcIndex != -1 && destIndex == -1)
     {
+        std::cout << "Renaming file..." << std::endl;
         int workingDirIndex = findIndexWorkingDir(sourcepath);
         if (workingDirIndex != -1)
         {
@@ -937,6 +988,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
                 workingDir[workingDirIndex]->file_name[i] = 0;
             }
             // rename file
+            destpath.push_back('\0'); // add null termination to filename
             for (int i = 0; i < destpath.size() && i < 56; i++)
             {
                 workingDir[workingDirIndex]->file_name[i] = destpath[i];
