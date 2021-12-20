@@ -356,15 +356,11 @@ void FS::initTree()
 {
     root = new treeNode;
     root->parent = root;
-<<<<<<< HEAD
     dir_entry *newDir = new dir_entry();
     for (int i = 0;i < 56;i++)
     {
         newDir->file_name[i] = '\0';
     }
-=======
-    dir_entry *newDir = new dir_entry;
->>>>>>> 78121e63aaa9f5f635c44f3cc0e9a10e7fbcfae8
     newDir->file_name[0] = '/';
     newDir->file_name[1] = '\0';
     newDir->first_blk = ROOT_BLOCK;
@@ -382,10 +378,6 @@ void FS::initTree()
 void FS::initTreeContinued(treeNode *pBranch)
 {
     int size = workingDir.size();
-<<<<<<< HEAD
-
-=======
->>>>>>> 78121e63aaa9f5f635c44f3cc0e9a10e7fbcfae8
     std::cout << pBranch->entry->file_name << std::endl;
 
     for (int i = 0; i < size; i++)
