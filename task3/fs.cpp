@@ -155,12 +155,13 @@ void FS::readInFatRoot()
     disk.read(1, block);
     // counter
     int x = 0;
-
+    fat[0] = FAT_EOF;
+    fat[1] = FAT_EOF;
     // loop through half the size of the FAT block
     // take 2 bytes each iteration and converting them
     // too a 16bit (2 byte) INT and adding it to the FAT array
     // until we have read the whole FAT from file
-    for (int i = 0; i < BLOCK_SIZE / 2; i++)
+    for (int i = 2; i < BLOCK_SIZE / 2; i++)
     {
         fat[i] = convert8to16(block[x], block[x + 1]);
         x += 2;
@@ -186,6 +187,10 @@ void FS::readInFatRoot()
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
+        for (int i = 0;i < 56;i++)
+        {
+            newDir->file_name[i] = '\0';
+        }
         for (int j = 0; j < 56; j++)
         {
             newDir->file_name[j] = block[x];
@@ -223,9 +228,10 @@ void FS::readInFatRoot()
 void FS::initWorkingDir(uint16_t blk)
 {
     updateFat();
+    cleanUpFiles();
+    workingDir.clear();
 
     uint8_t block[4096];
-    workingDir.clear();
     // read the dir_entry block into block array
     disk.read(blk, block);
     dir_entry *newDir;
@@ -238,7 +244,7 @@ void FS::initWorkingDir(uint16_t blk)
         // reset x to point to the first byte of the next dir entry
         int x = i;
         // create a new dir
-        newDir = new dir_entry;
+        newDir = new dir_entry();
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
@@ -295,6 +301,7 @@ void FS::changeWorkingDir(uint16_t blk)
         currentNode = root;
     }
 
+    cleanUpFiles();
     workingDir.clear();
     // read the dir_entry block into block array
     disk.read(blk, block);
@@ -308,7 +315,7 @@ void FS::changeWorkingDir(uint16_t blk)
         // reset x to point to the first byte of the next dir entry
         int x = i;
         // create a new dir
-        newDir = new dir_entry;
+        newDir = new dir_entry();
 
         // loop through the 56 bytes of the filename
         // copy it to newDir filename
@@ -350,7 +357,15 @@ void FS::initTree()
 {
     root = new treeNode;
     root->parent = root;
+<<<<<<< HEAD
+    dir_entry *newDir = new dir_entry();
+    for (int i = 0;i < 56;i++)
+    {
+        newDir->file_name[i] = '\0';
+    }
+=======
     dir_entry *newDir = new dir_entry;
+>>>>>>> b5bbd92eea14165180a766d83d1055f2a60e6263
     newDir->file_name[0] = '/';
     newDir->file_name[1] = '\0';
     newDir->first_blk = ROOT_BLOCK;
@@ -359,7 +374,6 @@ void FS::initTree()
     newDir->access_rights = READ + WRITE;
     root->entry = newDir;
     int size = workingDir.size();
-    initWorkingDir(ROOT_BLOCK);
     initTreeContinued(root);
     initWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
@@ -370,6 +384,7 @@ void FS::initTreeContinued(treeNode *pBranch)
 {
     int size = workingDir.size();
     std::cout << pBranch->entry->file_name << std::endl;
+
     for (int i = 0; i < size; i++)
     {
         if (workingDir[i]->type == TYPE_DIR)
@@ -555,6 +570,11 @@ void FS::testDisk()
         std::cout << currentNode->children[i]->entry->file_name << std::endl;
     }
     std::cout << "Children of: " << currentNode->entry->file_name << std::endl;
+    for (int i = 0;i < 10;i++)
+    {
+        std::cout << fat[i] << " ";
+    }
+    std::cout << " FAT\n";
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
