@@ -18,7 +18,6 @@
 #define WRITE 0x02
 #define EXECUTE 0x01
 
-#pragma pack (1)
 
 // TODO
 // prevent CP copying file into a dir where a file of that name already exists.

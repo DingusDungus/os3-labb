@@ -375,6 +375,7 @@ void FS::initTree()
 {
     root = new treeNode;
     root->parent = root;
+    currentNode = root;
     dir_entry *newDir = new dir_entry();
     for (int i = 0;i < 56;i++)
     {
@@ -391,7 +392,6 @@ void FS::initTree()
     initTreeContinued(root);
     changeWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
-    this->currentNode = this->root;
 }
 
 void FS::initTreeContinued(treeNode *pBranch)
