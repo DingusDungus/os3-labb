@@ -24,6 +24,11 @@
 // same as above for MV
 // make it possible to MV/CP files to the directory above ".."
 // FIX MEMORY POINTER UNINTIALIZED SUPER AIDS
+//
+//
+
+// Constant for comparing
+static const std::string DOTDOT = "..";
 
 struct dir_entry {
     char file_name[56] = ""; // name of the file / sub-directory
@@ -67,16 +72,17 @@ private:
     void cleanUp();
     void cleanUpDirs(treeNode* branch);
     void cleanUpFiles();
-    void clearWorkingDir();
+    void deleteWorkingDir();
     void updateFat();
     void readInFatRoot();
     void initWorkingDir(uint16_t blk);
     void changeWorkingDir(uint16_t blk);
     void initTree();
     void initTreeContinued(treeNode *branch);
-    void writeWorkingDir(uint16_t blk);
+    void writeWorkingDirToBlock(uint16_t blk);
     dir_entry* copyDirEntry(dir_entry* dir, std::string name);
     dir_entry* copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk);
+    dir_entry* makeDotDotDir(uint16_t blk);
 
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
     void convert16to8(uint16_t num, uint8_t * result);

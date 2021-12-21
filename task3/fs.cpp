@@ -3,8 +3,6 @@
 #include <string>
 #include "fs.h"
 
-#pragma pack(1)
-
 FS::FS()
 {
     std::cout << "FS::FS()... Creating file system\n";
@@ -17,7 +15,7 @@ FS::~FS()
 {
     updateFat();
     changeWorkingDir(0);
-    writeWorkingDir(0);
+    writeWorkingDirToBlock(0);
     cleanUp();
     delete root;
 }
@@ -49,17 +47,33 @@ void FS::cleanUpDirs(treeNode *branch)
 
 void FS::cleanUp()
 {
-    cleanUpFiles();
+    deleteWorkingDir();
     cleanUpDirs(root);
 }
 
-void FS::clearWorkingDir()
+void FS::deleteWorkingDir()
 {
     for (int i = 0; i < workingDir.size(); i++) {
-        if(workingDir[i] != currentNode->entry && workingDir[i] != root->entry)
         delete workingDir[i];
     }
-    workingDir.clear();
+}
+
+dir_entry* FS::makeDotDotDir(uint16_t blk)
+{
+    std::cout << "Wrote directory to blk: " << blk << std::endl;
+    dir_entry *dotDotEntry = new dir_entry;
+    std::string name = "..";
+    name.push_back('\0');
+    for (int i = 0; i < 56 && i < name.size(); i++)
+    {
+        dotDotEntry->file_name[i] = name[i];
+    }
+    dotDotEntry->first_blk = blk;
+    dotDotEntry->size = '-';
+    dotDotEntry->access_rights = 0x06;
+    dotDotEntry->type = 1;
+
+    return dotDotEntry;
 }
 
 int FS::getSecondNum(uint16_t num)
@@ -288,7 +302,12 @@ void FS::changeWorkingDir(uint16_t blk)
 
     uint8_t block[4096];
 
-    if (blk != ROOT_BLOCK){
+    if (blk == ROOT_BLOCK){
+        currentNode = root;
+    }else if (blk == currentNode->parent->entry->first_blk) {
+        currentNode = currentNode->parent;
+    }
+    else{
         for (int i = 0; i < currentNode->children.size(); i++)
         {
             if (currentNode->children[i]->entry->first_blk == blk)
@@ -297,11 +316,10 @@ void FS::changeWorkingDir(uint16_t blk)
                 break;
             }
         }
-    }else{
-        currentNode = root;
     }
 
-    cleanUpFiles();
+    deleteWorkingDir();
+    //cleanUpFiles();
     workingDir.clear();
     // read the dir_entry block into block array
     disk.read(blk, block);
@@ -383,7 +401,7 @@ void FS::initTreeContinued(treeNode *pBranch)
 
     for (int i = 0; i < size; i++)
     {
-        if (workingDir[i]->type == TYPE_DIR)
+        if (workingDir[i]->type == TYPE_DIR && workingDir[i]->file_name != DOTDOT)
         {
             treeNode *newBranch = new treeNode(pBranch, workingDir[i]);
             std::cout << workingDir[i]->file_name << std::endl;
@@ -398,7 +416,7 @@ void FS::initTreeContinued(treeNode *pBranch)
     }
 }
 
-void FS::writeWorkingDir(uint16_t blk)
+void FS::writeWorkingDirToBlock(uint16_t blk)
 {
     uint8_t block[4096];
     uint8_t bit16[2];
@@ -765,7 +783,7 @@ int FS::create(std::string filepath)
     workingDir.push_back(newEntry);
     std::cout << "Added file to dir: " << currentNode->entry->file_name << std::endl;
 
-    writeWorkingDir(currentNode->entry->first_blk);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -808,15 +826,6 @@ int FS::ls()
 {
     std::cout << "FS::ls()\n";
     std::cout << "name\ttype\tsize\n";
-    // if we are not in root, print the .. directory
-    if (currentNode != root)
-    {
-        std::cout
-            << "../"
-            << '\t' << "dir"
-            << '\t' << "-"
-            << '\n';
-    }
     //print files and directories
     for (int i = 0; i < workingDir.size(); i++)
     {
@@ -910,7 +919,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
         initWorkingDir(destBlk);
         workingDir.push_back(newEntry);
-        writeWorkingDir(destBlk);
+        writeWorkingDirToBlock(destBlk);
         initWorkingDir(prevBlock);
     }
     //otherwise we just copy file in currentDir
@@ -928,7 +937,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     }
 
     // save to disk
-    writeWorkingDir(currentNode->entry->first_blk);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -968,10 +977,10 @@ int FS::mv(std::string sourcepath, std::string destpath)
         std::cout << "destination is block: " << destBlock << std::endl;
 
         workingDir.erase(workingDir.begin() + srcIndex);
-        writeWorkingDir(srcBlock);
+        writeWorkingDirToBlock(srcBlock);
         initWorkingDir(destBlock);
         workingDir.push_back(fileEntry);
-        writeWorkingDir(destBlock);
+        writeWorkingDirToBlock(destBlock);
         initWorkingDir(srcBlock);
     }
     else if (srcIndex != -1 && destIndex == -1)
@@ -994,7 +1003,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
         }
     }
 
-    writeWorkingDir(currentNode->entry->first_blk);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -1036,7 +1045,7 @@ int FS::rm(std::string filepath)
         }
     }
 
-    writeWorkingDir(currentNode->entry->first_blk);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -1079,7 +1088,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     writeBlocksFromString(filepath2, contents, fatIndex, count);
     workingDir[entryIndex]->size += contents.size();
 
-    writeWorkingDir(currentNode->entry->first_blk);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
 }
@@ -1090,6 +1099,7 @@ int FS::mkdir(std::string dirpath)
 {
     std::cout << "FS::mkdir(" << dirpath << ")\n";
     int freeIndex = getFreeIndex();
+    uint16_t parentBlock = currentNode->entry->first_blk;
     uint8_t block[4096];
     for (int i = 0; i < 4096; i++)
     {
@@ -1098,6 +1108,7 @@ int FS::mkdir(std::string dirpath)
     disk.write(freeIndex, block);
     fat[freeIndex] = FAT_EOF;
     std::cout << "Wrote directory to blk: " << freeIndex << std::endl;
+    // create dir entry
     dir_entry *newEntry = new dir_entry;
     dirpath.push_back('\0');
     for (int i = 0; i < 56 && i < dirpath.size(); i++)
@@ -1111,10 +1122,22 @@ int FS::mkdir(std::string dirpath)
     workingDir.push_back(newEntry);
     std::cout << "Added contents to dir: " << dirpath << std::endl;
 
+    // create new treeNode with the new directory
     treeNode *newBranch = new treeNode(currentNode, newEntry);
     currentNode->children.push_back(newBranch);
 
-    writeWorkingDir(currentNode->entry->first_blk);
+    // create DOTDOT entry for new directory.
+    dir_entry* dotDotDir = makeDotDotDir(parentBlock);
+
+    // write current workingDir
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
+
+    // change workingDir to newBranch and add the dotDotDir
+    changeWorkingDir(freeIndex);
+    workingDir.push_back(dotDotDir);
+    writeWorkingDirToBlock(freeIndex);
+    // change back to currentDir
+    changeWorkingDir(parentBlock);
 
     return 0;
 }
@@ -1125,18 +1148,12 @@ int FS::cd(std::string dirpath)
 
     std::cout << "FS::cd(" << dirpath << ")\n";
     int index = findIndexWorkingDir(dirpath);
-    if (index == -1 && dirpath != "..")
+    if (index == -1)
     {
         return 1;
     }
-    if (dirpath == "..")
-    {
-        std::cout << currentNode->entry->file_name << std::endl;
-        currentNode = currentNode->parent;
-        initWorkingDir(currentNode->entry->first_blk);
-        std::cout << currentNode->entry->file_name << std::endl;
-    }
-    else if (workingDir[index]->type == TYPE_DIR)
+
+    if (workingDir[index]->type == TYPE_DIR)
     {
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
