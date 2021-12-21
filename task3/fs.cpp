@@ -47,8 +47,8 @@ void FS::cleanUpDirs(treeNode *branch)
 
 void FS::cleanUp()
 {
-    deleteWorkingDir();
     cleanUpDirs(root);
+    deleteWorkingDir();
 }
 
 void FS::deleteWorkingDir()
