@@ -62,12 +62,10 @@ dir_entry* FS::makeDotDotDir(uint16_t blk)
 {
     std::cout << "Wrote directory to blk: " << blk << std::endl;
     dir_entry *dotDotEntry = new dir_entry;
-    std::string name = "..";
-    name.push_back('\0');
-    for (int i = 0; i < 56 && i < name.size(); i++)
-    {
-        dotDotEntry->file_name[i] = name[i];
-    }
+    dotDotEntry->file_name[0] = '.';
+    dotDotEntry->file_name[1] = '.';
+    dotDotEntry->file_name[2] = '\0';
+
     dotDotEntry->first_blk = blk;
     dotDotEntry->size = '-';
     dotDotEntry->access_rights = 0x06;
