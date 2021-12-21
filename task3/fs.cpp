@@ -148,6 +148,11 @@ void FS::updateFat()
     disk.write(1, block);
 }
 
+void FS::updateBranchEntries()
+{
+    currentNode->entries = workingDir;  
+}
+
 void FS::readInFatRoot()
 {
     uint8_t block[4096];
@@ -228,7 +233,6 @@ void FS::readInFatRoot()
 void FS::initWorkingDir(uint16_t blk)
 {
     updateFat();
-    cleanUpFiles();
     workingDir.clear();
 
     uint8_t block[4096];
@@ -287,85 +291,30 @@ void FS::changeWorkingDir(uint16_t blk)
     updateFat();
 
     uint8_t block[4096];
+    int i = 0;
 
     if (blk != ROOT_BLOCK){
-        for (int i = 0; i < currentNode->children.size(); i++)
+        for (; i < currentNode->children.size(); i++)
         {
             if (currentNode->children[i]->entry->first_blk == blk)
             {
                 currentNode = currentNode->children[i];
+                workingDir = currentNode->entries;
                 break;
             }
         }
     }else{
         currentNode = root;
+        workingDir = currentNode->entries;
     }
 
-    cleanUpFiles();
-    workingDir.clear();
-    // read the dir_entry block into block array
-    disk.read(blk, block);
-    dir_entry *newDir;
-    uint8_t result[4];
-
-    // loop through dir_entry block until we reach end '\0'
-    // jumps 64 at each iteration since size of dir_entry is 64 bytes.
-    for (int i = 0; i < 4096 && block[i] != '\0'; i += 64)
-    {
-        // reset x to point to the first byte of the next dir entry
-        int x = i;
-        // create a new dir
-        newDir = new dir_entry();
-
-        // loop through the 56 bytes of the filename
-        // copy it to newDir filename
-        for (int j = 0; j < 56; j++)
-        {
-            newDir->file_name[j] = block[x];
-            x++;
-        }
-        // copy the next 4 bytes containing size to reslut array
-        for (int j = 0; j < 4; j++)
-        {
-            result[j] = block[x];
-            x++;
-        }
-        // convert the 4 bytes in result array into a 32bit (4 byte) INT
-        // and copy into newDirs size
-        newDir->size = convert8to32(result);
-        // copy the next 2 bytes containing first_blk into result array
-        for (int j = 0; j < 2; j++)
-        {
-            result[j] = block[x];
-            x++;
-        }
-        // convert the 2 bytes into one 16bit (2 byte) INT
-        // and copy it to first_blk
-        newDir->first_blk = convert8to16(result[0], result[1]);
-        // copy the next 1 byte straight into the type variable
-        // as it is already a 8bit (1 byte) INT, no conversion needed.
-        newDir->type = block[x];
-        x++;
-        // do the same as for type above for the access_rights.
-        newDir->access_rights = block[x];
-        // push the entry into the workingDir array.
-        workingDir.push_back(newDir);
-    }
 }
 
 void FS::initTree()
 {
     root = new treeNode;
     root->parent = root;
-<<<<<<< HEAD
-    dir_entry *newDir = new dir_entry();
-    for (int i = 0;i < 56;i++)
-    {
-        newDir->file_name[i] = '\0';
-    }
-=======
     dir_entry *newDir = new dir_entry;
->>>>>>> b5bbd92eea14165180a766d83d1055f2a60e6263
     newDir->file_name[0] = '/';
     newDir->file_name[1] = '\0';
     newDir->first_blk = ROOT_BLOCK;
@@ -384,6 +333,7 @@ void FS::initTreeContinued(treeNode *pBranch)
 {
     int size = workingDir.size();
     std::cout << pBranch->entry->file_name << std::endl;
+    pBranch->entries = workingDir;
 
     for (int i = 0; i < size; i++)
     {
@@ -575,6 +525,11 @@ void FS::testDisk()
         std::cout << fat[i] << " ";
     }
     std::cout << " FAT\n";
+    for (int i = 0;i < currentNode->entries.size();i++)
+    {
+        std::cout << currentNode->entries[i]->file_name << " " << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -770,6 +725,7 @@ int FS::create(std::string filepath)
     std::cout << "Added file to dir: " << currentNode->entry->file_name << std::endl;
 
     writeWorkingDir(currentNode->entry->first_blk);
+    updateBranchEntries();
 
     return 0;
 }
@@ -912,10 +868,11 @@ int FS::cp(std::string sourcepath, std::string destpath)
         std::cout << "current block block is: " << prevBlock << std::endl;
         std::cout << "destination is block: " << destBlk << std::endl;
 
-        initWorkingDir(destBlk);
+        changeWorkingDir(destBlk);
         workingDir.push_back(newEntry);
         writeWorkingDir(destBlk);
-        initWorkingDir(prevBlock);
+        updateBranchEntries();
+        changeWorkingDir(prevBlock);
     }
     //otherwise we just copy file in currentDir
     else
@@ -933,6 +890,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
     // save to disk
     writeWorkingDir(currentNode->entry->first_blk);
+    updateBranchEntries();
 
     return 0;
 }
@@ -973,10 +931,11 @@ int FS::mv(std::string sourcepath, std::string destpath)
 
         workingDir.erase(workingDir.begin() + srcIndex);
         writeWorkingDir(srcBlock);
-        initWorkingDir(destBlock);
+        changeWorkingDir(destBlock);
         workingDir.push_back(fileEntry);
         writeWorkingDir(destBlock);
-        initWorkingDir(srcBlock);
+        updateBranchEntries();
+        changeWorkingDir(srcBlock);
     }
     else if (srcIndex != -1 && destIndex == -1)
     {
@@ -999,6 +958,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     }
 
     writeWorkingDir(currentNode->entry->first_blk);
+    updateBranchEntries();
 
     return 0;
 }
@@ -1041,6 +1001,7 @@ int FS::rm(std::string filepath)
     }
 
     writeWorkingDir(currentNode->entry->first_blk);
+    updateBranchEntries();
 
     return 0;
 }
@@ -1084,6 +1045,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     workingDir[entryIndex]->size += contents.size();
 
     writeWorkingDir(currentNode->entry->first_blk);
+    updateBranchEntries();
 
     return 0;
 }
@@ -1119,6 +1081,7 @@ int FS::mkdir(std::string dirpath)
     currentNode->children.push_back(newBranch);
 
     writeWorkingDir(currentNode->entry->first_blk);
+    updateBranchEntries();
 
     return 0;
 }
@@ -1137,7 +1100,7 @@ int FS::cd(std::string dirpath)
     {
         std::cout << currentNode->entry->file_name << std::endl;
         currentNode = currentNode->parent;
-        initWorkingDir(currentNode->entry->first_blk);
+        workingDir = currentNode->entries;
         std::cout << currentNode->entry->file_name << std::endl;
     }
     else if (workingDir[index]->type == TYPE_DIR)

@@ -38,6 +38,7 @@ struct treeNode
     treeNode* parent;
     dir_entry* entry;
     std::vector<treeNode*> children;
+    std::vector<dir_entry *> entries;
     treeNode()
     {
         parent = nullptr;
@@ -69,6 +70,7 @@ private:
     void cleanUpFiles();
     void clearWorkingDir();
     void updateFat();
+    void updateBranchEntries();
     void readInFatRoot();
     void initWorkingDir(uint16_t blk);
     void changeWorkingDir(uint16_t blk);
