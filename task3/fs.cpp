@@ -47,8 +47,8 @@ void FS::cleanUpDirs(treeNode *branch)
 
 void FS::cleanUp()
 {
-    cleanUpDirs(root);
     deleteWorkingDir();
+    cleanUpDirs(root);
 }
 
 void FS::deleteWorkingDir()
@@ -242,7 +242,7 @@ void FS::readInFatRoot()
 void FS::initWorkingDir(uint16_t blk)
 {
     updateFat();
-    cleanUpFiles();
+    deleteWorkingDir();
     workingDir.clear();
 
     uint8_t block[4096];
@@ -389,7 +389,7 @@ void FS::initTree()
     root->entry = newDir;
     int size = workingDir.size();
     initTreeContinued(root);
-    initWorkingDir(ROOT_BLOCK);
+    changeWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
     this->currentNode = this->root;
 }
@@ -547,11 +547,14 @@ int FS::format()
     {
         fat[i] = FAT_FREE;
     }
+    updateFat();
+
+    deleteWorkingDir();
     workingDir.clear();
 
-    updateFat();
-    currentNode = root;
-    initWorkingDir(0);
+    readInFatRoot();
+    initTree();
+    changeWorkingDir(0);
 
     return 0;
 }
@@ -696,6 +699,22 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents)
 
     std::cout << "Added contents to blocks\n";
     return firstFatIndex;
+}
+
+dir_entry* FS::copyDirEntry(dir_entry* dir)
+{
+    // copy over the dir entry
+    dir_entry *newEntry = new dir_entry;
+    for (int i = 0; i < 56; i++)
+    {
+        newEntry->file_name[i] = dir->file_name[i];
+    }
+    newEntry->first_blk = dir->first_blk;
+    newEntry->size = dir->size;
+    newEntry->access_rights = dir->access_rights;
+    newEntry->type = dir->type;
+
+    return newEntry;
 }
 
 dir_entry* FS::copyDirEntry(dir_entry* dir, std::string name)

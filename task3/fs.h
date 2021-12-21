@@ -18,6 +18,7 @@
 #define WRITE 0x02
 #define EXECUTE 0x01
 
+#pragma pack (1)
 
 // TODO
 // prevent CP copying file into a dir where a file of that name already exists.
@@ -56,7 +57,18 @@ struct treeNode
     treeNode(treeNode *parent, dir_entry *entry)
     {
         this->parent = parent;
-        this->entry = entry;
+        // copy over the dir entry
+        dir_entry *newEntry = new dir_entry;
+        for (int i = 0; i < 56; i++)
+        {
+            newEntry->file_name[i] = entry->file_name[i];
+        }
+        newEntry->first_blk = entry->first_blk;
+        newEntry->size = entry->size;
+        newEntry->access_rights = entry->access_rights;
+        newEntry->type = entry->type;
+
+        this->entry = newEntry;
     }
 };
 
@@ -80,6 +92,7 @@ private:
     void initTree();
     void initTreeContinued(treeNode *branch);
     void writeWorkingDirToBlock(uint16_t blk);
+    dir_entry* copyDirEntry(dir_entry* dir);
     dir_entry* copyDirEntry(dir_entry* dir, std::string name);
     dir_entry* copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk);
     dir_entry* makeDotDotDir(uint16_t blk);
