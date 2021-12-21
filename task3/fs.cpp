@@ -19,37 +19,23 @@ FS::~FS()
     changeWorkingDir(0);
     writeWorkingDir(0);
     cleanUp();
-    delete root;
-}
-
-void FS::cleanUpFiles()
-{
-    for (int i = 0;i < workingDir.size();i++)
-    {
-        if (workingDir[i]->type == TYPE_FILE)
-        {
-            delete workingDir[i];
-        }
-    }
 }
 
 void FS::cleanUpDirs(treeNode *branch)
 {
-    std::cout << branch->entry->file_name << std::endl;
     for (int i = 0;i < branch->children.size();i++)
     {
         cleanUpDirs(branch->children[i]);
     }
-    if (branch != root)
+    for (int i = 0;i < branch->entries.size();i++)
     {
-        delete branch->entry;
-        delete branch;
+        delete branch->entries[i];
     }
+    delete branch;
 }
 
 void FS::cleanUp()
 {
-    cleanUpFiles();
     cleanUpDirs(root);
 }
 

@@ -67,7 +67,6 @@ private:
     treeNode *currentNode = nullptr;
     void cleanUp();
     void cleanUpDirs(treeNode* branch);
-    void cleanUpFiles();
     void clearWorkingDir();
     void updateFat();
     void updateBranchEntries();
