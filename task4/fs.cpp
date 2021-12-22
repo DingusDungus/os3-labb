@@ -473,6 +473,8 @@ void FS::changeWorkingDir(uint16_t blk)
 
 void FS::initTree()
 {
+    // we need to initialize root treeNode so it has a parent and a dir_entry,
+    // think thats why we get unitialized bytes.
     root = new treeNode;
     root->parent = root;
     currentNode = root;
