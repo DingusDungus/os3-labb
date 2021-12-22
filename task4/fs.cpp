@@ -246,9 +246,10 @@ int FS::parsePath(std::string path)
     int index = 0;
     std::string dirName;
     int origin = currentNode->entry->first_blk;
+    // if first char is '/' then we know we start in root.
     if (path[0] == '/')
     {
-        changeWorkingDir(0);
+        changeWorkingDir(ROOT_BLOCK);
         index++;
     }
     if (path[path.size() - 1] != '/')

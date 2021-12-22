@@ -96,9 +96,12 @@ private:
     dir_entry* copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk);
     dir_entry* makeDotDotDir(uint16_t blk);
 
+    // parses a filepath and calls changeDirectory()
+    // to change current workingDir to last directory in path
+    // if it exists. if doesnt exist it returns -1
     int parsePath(std::string path);
     // checks if file exists and is a directory, then changes directory
-    // return -1 if it doesnt exists
+    // return -1 if it doesnt exists or is a file.
     int changeDirectory(std::string dirName);
 
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
