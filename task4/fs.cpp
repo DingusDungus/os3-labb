@@ -443,18 +443,20 @@ void FS::initTree()
     newDir->type = TYPE_DIR;
     newDir->access_rights = READ + WRITE;
     root->entry = newDir;
-    int size = workingDir.size();
+
+    // start recursion
     initTreeContinued(root);
+
     changeWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
 }
 
 void FS::initTreeContinued(treeNode *pBranch)
 {
-    int size = workingDir.size();
     std::cout << pBranch->entry->file_name << std::endl;
 
-    for (int i = 0; i < size; i++)
+    // read in working dir.
+    for (int i = 0; i < workingDir.size(); i++)
     {
         if (workingDir[i]->type == TYPE_DIR && workingDir[i]->file_name != DOTDOT)
         {
@@ -463,11 +465,13 @@ void FS::initTreeContinued(treeNode *pBranch)
 
             pBranch->children.push_back(newBranch);
 
-            initWorkingDir(workingDir[i]->first_blk);
-            std::cout << std::endl;
-            initTreeContinued(newBranch);
-            initWorkingDir(newBranch->entry->first_blk);
         }
+    }
+    // call recursively for all children directories that are not DOTDOT.
+    for (int i = 0; i < pBranch->children.size(); i++) {
+        initWorkingDir(pBranch->children[i]->entry->first_blk);
+        std::cout << "Recursion: " << pBranch->children[i]->entry->file_name << std::endl;
+        initTreeContinued(pBranch->children[i]);
     }
 }
 
@@ -612,6 +616,10 @@ int FS::format()
     readInFatRoot();
     initTree();
     changeWorkingDir(0);
+    // create DOTDOT entry for ROOT.
+    dir_entry *dotDotDir = makeDotDotDir(ROOT_BLOCK);
+    workingDir.push_back(dotDotDir);
+    writeWorkingDirToBlock(ROOT_BLOCK);
 
     return 0;
 }
