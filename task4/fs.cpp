@@ -130,7 +130,7 @@ bool FS::dirEmpty(uint16_t blk)
 {
     uint8_t block[4096];
     disk.read(blk, block);
-    if (block[0] == 0)
+    if (block[64] == 0)
     {
         return true;
     }
@@ -453,7 +453,7 @@ void FS::initTree()
 
 void FS::initTreeContinued(treeNode *pBranch)
 {
-    std::cout << pBranch->entry->file_name << std::endl;
+    std::cout << "Current branch: " << pBranch->entry->file_name << std::endl;
 
     // read in working dir.
     for (int i = 0; i < workingDir.size(); i++)
@@ -461,7 +461,7 @@ void FS::initTreeContinued(treeNode *pBranch)
         if (workingDir[i]->type == TYPE_DIR && workingDir[i]->file_name != DOTDOT)
         {
             treeNode *newBranch = new treeNode(pBranch, workingDir[i]);
-            std::cout << workingDir[i]->file_name << std::endl;
+            std::cout << "Adding to children: " << workingDir[i]->file_name << std::endl;
 
             pBranch->children.push_back(newBranch);
 
@@ -1122,9 +1122,10 @@ int FS::rm(std::string filepath)
         // Erases the dir entry from the vector
         workingDir.erase(workingDir.begin() + entryIndex);
     }
-    else
+    else if (workingDir[entryIndex]->type == TYPE_DIR)
     {
-        if (dirEmpty(workingDir[entryIndex]->first_blk))
+        if (dirEmpty(workingDir[entryIndex]->first_blk) &&
+                workingDir[entryIndex]->file_name != DOTDOT)
         {
             fat[workingDir[entryIndex]->first_blk] = FAT_FREE;
             workingDir.erase(workingDir.begin() + entryIndex);
