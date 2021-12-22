@@ -265,7 +265,7 @@ int FS::parsePath(std::string path)
         }
         else
         {
-            if (changeDirectory(dirName))
+            if (changeDirectory(dirName) == -1)
             {
                 std::cout << dirName << " doesn't exist!!!\n";
                 changeWorkingDir(origin);
@@ -278,7 +278,7 @@ int FS::parsePath(std::string path)
 }
 
 // checks if file exists and is a directory, then changes directory
-// return -1 if it doesnt exists
+// return -1 if it doesnt exists or is a file.
 int FS::changeDirectory(std::string dirName)
 {
     int index = findIndexWorkingDir(dirName);
@@ -292,6 +292,9 @@ int FS::changeDirectory(std::string dirName)
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
         std::cout << currentNode->entry->file_name << std::endl;
+    }else {
+        std::cout << "Error: Entry is a file" << std::endl;
+        return -1;
     }
     return 0;
 }
@@ -1246,7 +1249,7 @@ int FS::cd(std::string dirpath)
 {
 
     std::cout << "FS::cd(" << dirpath << ")\n";
-    return parsePath(dirpath);
+    if (parsePath(dirpath) == -1) {return 1;}
 
     return 0;
 }
