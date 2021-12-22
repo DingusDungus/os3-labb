@@ -97,6 +97,8 @@ private:
     dir_entry* makeDotDotDir(uint16_t blk);
 
     int parsePath(std::string path);
+    // checks if file exists and is a directory, then changes directory
+    // return -1 if it doesnt exists
     int changeDirectory(std::string dirName);
 
     uint16_t convert8to16(uint8_t num1, uint8_t num2);

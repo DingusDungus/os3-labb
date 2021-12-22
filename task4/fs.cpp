@@ -238,6 +238,9 @@ void FS::readInFatRoot()
     }
 }
 
+// parses a filepath and calls changeDirectory()
+// to change current workingDir to last directory in path
+// if it exists. if doesnt exist it returns -1
 int FS::parsePath(std::string path)
 {
     int index = 0;
@@ -251,7 +254,8 @@ int FS::parsePath(std::string path)
     if (path[path.size() - 1] != '/')
     {
         std::cout << "Error improper syntax: Path did not end with '/'\n";
-        return 1;
+        changeWorkingDir(origin);
+        return -1;
     }
     for (;index < path.size(); index++)
     {
@@ -265,7 +269,7 @@ int FS::parsePath(std::string path)
             {
                 std::cout << dirName << " doesn't exist!!!\n";
                 changeWorkingDir(origin);
-                return 1;
+                return -1;
             }
             dirName.clear();
         }
@@ -273,12 +277,14 @@ int FS::parsePath(std::string path)
     return 0;
 }
 
+// checks if file exists and is a directory, then changes directory
+// return -1 if it doesnt exists
 int FS::changeDirectory(std::string dirName)
 {
     int index = findIndexWorkingDir(dirName);
     if (index == -1)
     {
-        return 1;
+        return -1;
     }
 
     if (workingDir[index]->type == TYPE_DIR)
@@ -1124,6 +1130,7 @@ int FS::rm(std::string filepath)
     }
     else if (workingDir[entryIndex]->type == TYPE_DIR)
     {
+        // check dir is empty and isnt a special ".." directory
         if (dirEmpty(workingDir[entryIndex]->first_blk) &&
                 workingDir[entryIndex]->file_name != DOTDOT)
         {
@@ -1136,6 +1143,7 @@ int FS::rm(std::string filepath)
         }
     }
 
+    // write to disk
     writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
