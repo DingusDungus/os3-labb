@@ -103,6 +103,8 @@ private:
     // checks if file exists and is a directory, then changes directory
     // return -1 if it doesnt exists or is a file.
     int changeDirectory(std::string dirName);
+    // returns a std:string vector containg all the dirs/files in a given path.
+    std::vector<std::string> splitPath(std::string path);
 
     uint16_t convert8to16(uint8_t num1, uint8_t num2);
     void convert16to8(uint16_t num, uint8_t * result);

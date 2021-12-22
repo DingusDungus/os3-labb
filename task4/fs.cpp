@@ -238,6 +238,41 @@ void FS::readInFatRoot()
     }
 }
 
+// returns a std:string vector containg all the dirs/files in a given path.
+std::vector<std::string> FS::splitPath(std::string path)
+{
+    std::vector<std::string> pathVector;
+    std::cout << "Path: " << path << std::endl;
+
+    // save root to pathVector if first char is '/'
+    if(path[0] == '/'){
+        pathVector.push_back("/");
+        std::cout << "Added :" << path[0] << " to pathVector" << std::endl;
+        path.erase(0, 1); // remove first char in string.
+    }
+
+    size_t pos = 0;
+    std::string entry;
+    while ((pos = path.find("/")) != std::string::npos)
+    {
+        entry = path.substr(0, pos);
+        // ignore empty strings
+        if(path != ""){
+            pathVector.push_back(entry);
+            std::cout << "Added :" << entry << " to pathVector" << std::endl;
+        }
+        path.erase(0, pos + 1);
+    }
+    // ignore empty strings
+    if(path != ""){
+        std::cout << "Added :" << path << " to pathVector" << std::endl;
+        pathVector.push_back(entry);
+    }
+    std::cout << "Vector size: " << pathVector.size() << std::endl;
+
+    return pathVector;
+}
+
 // parses a filepath and calls changeDirectory()
 // to change current workingDir to last directory in path
 // if it exists. if doesnt exist it returns -1
@@ -667,6 +702,17 @@ void FS::testDisk()
         std::cout << fat[i] << " ";
     }
     std::cout << " FAT\n";
+
+    std::cout << "------------------------------------------" << std::endl;
+    std::cout << "Split path string test:" << std::endl;
+    splitPath("/dir1/dir2/dir3/dir4/");
+    std::cout << "------------------------------------------" << std::endl;
+    splitPath("dir1/dir2/dir3/dir4/");
+    std::cout << "------------------------------------------" << std::endl;
+    splitPath("/dir1/dir2/dir3/dir4");
+    std::cout << "------------------------------------------" << std::endl;
+    splitPath("dir1/dir2/dir3/dir4");
+    std::cout << "------------------------------------------" << std::endl;
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
