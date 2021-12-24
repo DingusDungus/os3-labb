@@ -100,6 +100,7 @@ private:
     // to change current workingDir to last directory in path
     // if it exists. if doesnt exist it returns -1
     int parsePath(std::string path);
+    std::string parseTilFile(std::string path);
     // checks if file exists and is a directory, then changes directory
     // return -1 if it doesnt exists or is a file.
     int changeDirectory(std::string dirName);
@@ -112,7 +113,7 @@ private:
     uint32_t convert8to32(uint8_t *result);
     void convert32to8(uint32_t num, uint8_t *result);
     // help function for cp return first block index
-    int writeBlocksFromString(std::string filepath, std::string contents);
+    int writeBlocksFromString(std::string contents);
     //Writes to already existing block from string
     int writeBlocksFromString
         (std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex);

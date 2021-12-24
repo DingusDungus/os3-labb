@@ -313,6 +313,43 @@ int FS::parsePath(std::string path)
     return 0;
 }
 
+std::string FS::parseTilFile(std::string path)
+{
+    int index = 0;
+    std::string dirName;
+    int origin = currentNode->entry->first_blk;
+    // if first char is '/' then we know we start in root.
+    if (path[0] == '/')
+    {
+        changeWorkingDir(ROOT_BLOCK);
+        index++;
+    }
+    if (path[path.size() - 1] == '/')
+    {
+        std::cout << "Error improper syntax: Path did ended with '/'\n";
+        changeWorkingDir(origin);
+        return "";
+    }
+    for (;index < path.size(); index++)
+    {
+        if (path[index] != '/')
+        {
+            dirName += path[index];
+        }
+        else
+        {
+            if (changeDirectory(dirName) == -1)
+            {
+                std::cout << dirName << " doesn't exist!!!\n";
+                changeWorkingDir(origin);
+                return "";
+            }
+            dirName.clear();
+        }
+    }
+    return dirName;
+}
+
 // checks if file exists and is a directory, then changes directory
 // return -1 if it doesnt exists or is a file.
 int FS::changeDirectory(std::string dirName)
@@ -770,7 +807,7 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16
 }
 
 // help function for cp return first block index
-int FS::writeBlocksFromString(std::string filepath, std::string contents)
+int FS::writeBlocksFromString(std::string contents)
 {
     uint8_t block[4096];
     int firstFatIndex = 0;
@@ -908,7 +945,7 @@ int FS::create(std::string filepath)
     contents.push_back('\0');
 
     // create new file and save its first block.
-    firstFatIndex = writeBlocksFromString(filepath, contents);
+    firstFatIndex = writeBlocksFromString(contents);
 
     std::cout << "Added contents to blocks\n";
     std::cout << "Wrote file to blk: " << firstFatIndex << std::endl;
@@ -934,16 +971,19 @@ int FS::create(std::string filepath)
 // cat <filepath> reads the content of a file and prints it on the screen
 int FS::cat(std::string filepath)
 {
+    int origin = currentNode->entry->first_blk;
     std::cout << "FS::cat(" << filepath << ")\n";
+    std::string fileName = parseTilFile(filepath);
+    std::cout << fileName << std::endl;
     // Tries to find file in rootblock
-    int first_blk = findBlockWorkingDir(filepath);
+    int first_blk = findBlockWorkingDir(fileName);
 
     // if file cannot be found, throw error.
     if (first_blk == -1)
     {
         return 1;
     }
-    int index = findIndexWorkingDir(filepath);
+    int index = findIndexWorkingDir(fileName);
     if (workingDir[index]->type == TYPE_DIR)
     {
         return 2;
@@ -961,6 +1001,7 @@ int FS::cat(std::string filepath)
         }
         fatIndex = fat[fatIndex];
     }
+    changeWorkingDir(origin);
     return 0;
 }
 
@@ -1000,46 +1041,30 @@ int FS::cp(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::cp(" << sourcepath << "," << destpath << ")\n";
     // Tries to find file in rootblock
-
+    uint16_t prevBlock = currentNode->entry->first_blk;
     uint16_t first_blk = 0;
     uint8_t block[4096];
     int dstEntryIndex = 0;
     int srcEntryIndex = 0;
     std::string contents = "";
     uint8_t destType = 0;
-    srcEntryIndex = findIndexWorkingDir(sourcepath);
-    dstEntryIndex = findIndexWorkingDir(destpath);
+    std::string srcName = parseTilFile(sourcepath);
+    srcEntryIndex = findIndexWorkingDir(srcName);
     // Tries to find file in rootblock
-    first_blk = findBlockWorkingDir(sourcepath);
-    uint16_t destBlk = findBlockWorkingDir(destpath);
-    uint16_t prevBlock = currentNode->entry->first_blk;
+    first_blk = findBlockWorkingDir(srcName);
     // if source file cannot be found, or is a directory throw error.
-    if (!fileExist(sourcepath) || workingDir[srcEntryIndex]->type == TYPE_DIR)
-    {
-        return 1;
-    }
-    // throw error if destination already exists and is a file
-    if (fileExist(destpath) && workingDir[dstEntryIndex]->type == TYPE_FILE)
-    {
-        return 1;
-    }
-    // if dest file not found, dont set destType
-    if (dstEntryIndex != -1)
-    {
-        uint8_t destType = workingDir[dstEntryIndex]->type;
-    }
-
-    if (destpath == "..")
-    {
-        // set parents block as destination
-        destBlk = currentNode->parent->entry->first_blk;
-        // set type as a directory
-        destType = 1;
-        // set destIndex to -2 to pass exists check.
-        dstEntryIndex = -2;
-    }
-
     // read in all the from the sourcefile blocks to contents.
+
+    dir_entry *newEntry = new dir_entry;
+    for (int i = 0;i < 56;i++)
+    {
+        newEntry->file_name[i] = workingDir[srcEntryIndex]->file_name[i];
+    }
+    newEntry->access_rights = workingDir[srcEntryIndex]->access_rights;
+    newEntry->size = workingDir[srcEntryIndex]->size;
+    newEntry->type = workingDir[srcEntryIndex]->type;
+    
+
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
@@ -1051,32 +1076,35 @@ int FS::cp(std::string sourcepath, std::string destpath)
         }
         fatIndex = fat[fatIndex];
     }
-
+    changeWorkingDir(prevBlock);
+    std::string dstName = parseTilFile(destpath);
+    dstEntryIndex = findIndexWorkingDir(dstName);
+    destType = workingDir[dstEntryIndex]->type;
+    uint16_t destBlk = findBlockWorkingDir(dstName);
     // if destination exists and is a directory
-    if (fileExist(destpath) || dstEntryIndex == -2 && destType == TYPE_DIR)
+    if (fileExist(dstName) || dstEntryIndex == -2 && destType == TYPE_DIR)
     {
         // copy to a directory
         // create new file and save its first block. for file to dir copy
-        first_blk = writeBlocksFromString(sourcepath, contents);
+        first_blk = writeBlocksFromString(contents);
         // copy over the dir entry, for file to file copy
-        dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex], sourcepath, first_blk);
+        newEntry->first_blk = first_blk;
 
         std::cout << "current block block is: " << prevBlock << std::endl;
         std::cout << "destination is block: " << destBlk << std::endl;
 
-        initWorkingDir(destBlk);
         workingDir.push_back(newEntry);
         writeWorkingDirToBlock(destBlk);
-        initWorkingDir(prevBlock);
+        changeWorkingDir(prevBlock);
     }
     // otherwise we just copy file in currentDir
     else
     {
         // just copying file in current dir
         // create new file and save its first block. for file to file copy
-        first_blk = writeBlocksFromString(destpath, contents);
+        first_blk = writeBlocksFromString(contents);
         // copy over the dir entry, for file to file copy
-        dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex], destpath, first_blk);
+        newEntry->first_blk = first_blk;
 
         std::cout << "destination is currentDir" << std::endl;
 
@@ -1085,6 +1113,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
     // save to disk
     writeWorkingDirToBlock(currentNode->entry->first_blk);
+    changeWorkingDir(prevBlock);
 
     return 0;
 }
