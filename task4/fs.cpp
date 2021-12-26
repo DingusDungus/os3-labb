@@ -245,7 +245,8 @@ std::vector<std::string> FS::splitPath(std::string path)
     std::cout << "Path: " << path << std::endl;
 
     // save root to pathVector if first char is '/'
-    if(path[0] == '/'){
+    if (path[0] == '/')
+    {
         pathVector.push_back("/");
         std::cout << "Added :" << path[0] << " to pathVector" << std::endl;
         path.erase(0, 1); // remove first char in string.
@@ -257,14 +258,16 @@ std::vector<std::string> FS::splitPath(std::string path)
     {
         entry = path.substr(0, pos);
         // ignore empty strings
-        if(path != ""){
+        if (path != "")
+        {
             pathVector.push_back(entry);
             std::cout << "Added :" << entry << " to pathVector" << std::endl;
         }
         path.erase(0, pos + 1);
     }
     // ignore empty strings
-    if(path != ""){
+    if (path != "")
+    {
         std::cout << "Added :" << path << " to pathVector" << std::endl;
         pathVector.push_back(entry);
     }
@@ -293,7 +296,7 @@ int FS::parsePath(std::string path)
         changeWorkingDir(origin);
         return -1;
     }
-    for (;index < path.size(); index++)
+    for (; index < path.size(); index++)
     {
         if (path[index] != '/' && index != (path.size()))
         {
@@ -324,13 +327,7 @@ std::string FS::parseTilFile(std::string path)
         changeWorkingDir(ROOT_BLOCK);
         index++;
     }
-    if (path[path.size() - 1] == '/')
-    {
-        std::cout << "Error improper syntax: Path did ended with '/'\n";
-        changeWorkingDir(origin);
-        return "";
-    }
-    for (;index < path.size(); index++)
+    for (; index < path.size(); index++)
     {
         if (path[index] != '/')
         {
@@ -365,7 +362,9 @@ int FS::changeDirectory(std::string dirName)
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
         std::cout << currentNode->entry->file_name << std::endl;
-    }else {
+    }
+    else
+    {
         std::cout << "Error: Entry is a file" << std::endl;
         return -1;
     }
@@ -548,11 +547,11 @@ void FS::initTreeContinued(treeNode *pBranch)
             std::cout << "Adding to children: " << workingDir[i]->file_name << std::endl;
 
             pBranch->children.push_back(newBranch);
-
         }
     }
     // call recursively for all children directories that are not DOTDOT.
-    for (int i = 0; i < pBranch->children.size(); i++) {
+    for (int i = 0; i < pBranch->children.size(); i++)
+    {
         initWorkingDir(pBranch->children[i]->entry->first_blk);
         std::cout << "Recursion: " << pBranch->children[i]->entry->file_name << std::endl;
         initTreeContinued(pBranch->children[i]);
@@ -1056,14 +1055,9 @@ int FS::cp(std::string sourcepath, std::string destpath)
     // read in all the from the sourcefile blocks to contents.
 
     dir_entry *newEntry = new dir_entry;
-    for (int i = 0;i < 56;i++)
-    {
-        newEntry->file_name[i] = workingDir[srcEntryIndex]->file_name[i];
-    }
     newEntry->access_rights = workingDir[srcEntryIndex]->access_rights;
     newEntry->size = workingDir[srcEntryIndex]->size;
     newEntry->type = workingDir[srcEntryIndex]->type;
-    
 
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
@@ -1082,11 +1076,17 @@ int FS::cp(std::string sourcepath, std::string destpath)
     destType = workingDir[dstEntryIndex]->type;
     uint16_t destBlk = findBlockWorkingDir(dstName);
     // if destination exists and is a directory
-    if (fileExist(dstName) || dstEntryIndex == -2 && destType == TYPE_DIR)
+    if (dstName.size() == 0)
     {
         // copy to a directory
         // create new file and save its first block. for file to dir copy
+        pwd();
+
         first_blk = writeBlocksFromString(contents);
+        for (int i = 0; i < 56; i++)
+        {
+            newEntry->file_name[i] = srcName[i];
+        }
         // copy over the dir entry, for file to file copy
         newEntry->first_blk = first_blk;
 
@@ -1094,8 +1094,6 @@ int FS::cp(std::string sourcepath, std::string destpath)
         std::cout << "destination is block: " << destBlk << std::endl;
 
         workingDir.push_back(newEntry);
-        writeWorkingDirToBlock(destBlk);
-        changeWorkingDir(prevBlock);
     }
     // otherwise we just copy file in currentDir
     else
@@ -1103,6 +1101,10 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // just copying file in current dir
         // create new file and save its first block. for file to file copy
         first_blk = writeBlocksFromString(contents);
+        for (int i = 0; i < 56; i++)
+        {
+            newEntry->file_name[i] = dstName[i];
+        }
         // copy over the dir entry, for file to file copy
         newEntry->first_blk = first_blk;
 
@@ -1123,44 +1125,30 @@ int FS::cp(std::string sourcepath, std::string destpath)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
-    int destIndex = findIndexWorkingDir(destpath);
-    int srcIndex = findIndexWorkingDir(sourcepath);
-    int destBlock = findBlockWorkingDir(destpath);
-    uint16_t srcBlock = currentNode->entry->first_blk;
-    uint8_t destType = 0;
+    int origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(sourcepath);
+    int srcIndex = findIndexWorkingDir(srcName);
+    if (srcName.size() == 0 || srcIndex == -1)
+    {
+        std::cout << "First parameter invalid\n";
+        return 1;
+    }
+    dir_entry *temp = workingDir[srcIndex];
+    workingDir.erase(workingDir.begin() + srcIndex);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
+    changeWorkingDir(origin);
+    std::string dstName = parseTilFile(destpath);
     // if dest file not found, dont set destType
-    if (destIndex != -1)
-    {
-        destType = workingDir[destIndex]->type;
-    }
 
-    if (destpath == "..")
-    {
-        // set parents block as destination
-        destBlock = currentNode->parent->entry->first_blk;
-        // set type as a directory
-        destType = 1;
-        // set destIndex to -2 to pass exists check.
-        destIndex = -2;
-    }
-
-    if (destIndex != -1 && srcIndex != -1 && destType == TYPE_DIR)
+    if (dstName.size() == 0)
     {
         // copy over the dir entry, for file to file copy
         std::cout << "Moving file..." << std::endl;
-        dir_entry *fileEntry = copyDirEntry(workingDir[srcIndex], sourcepath);
-
-        std::cout << "current block is: " << srcBlock << std::endl;
-        std::cout << "destination is block: " << destBlock << std::endl;
-
-        workingDir.erase(workingDir.begin() + srcIndex);
-        writeWorkingDirToBlock(srcBlock);
-        initWorkingDir(destBlock);
-        workingDir.push_back(fileEntry);
-        writeWorkingDirToBlock(destBlock);
-        initWorkingDir(srcBlock);
+        workingDir.push_back(temp);
+        temp = nullptr;
+        
     }
-    else if (srcIndex != -1 && destIndex == -1)
+    else
     {
         std::cout << "Renaming file..." << std::endl;
         int workingDirIndex = findIndexWorkingDir(sourcepath);
@@ -1169,19 +1157,19 @@ int FS::mv(std::string sourcepath, std::string destpath)
             // reset filename to empty
             for (int i = 0; i < 56; i++)
             {
-                workingDir[workingDirIndex]->file_name[i] = 0;
+                temp->file_name[i] = 0;
             }
             // rename file
-            destpath.push_back('\0'); // add null termination to filename
             for (int i = 0; i < destpath.size() && i < 56; i++)
             {
-                workingDir[workingDirIndex]->file_name[i] = destpath[i];
+                temp->file_name[i] = dstName[i];
             }
         }
+        workingDir.push_back(temp);
     }
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
-
+    changeWorkingDir(origin);
     return 0;
 }
 
@@ -1213,7 +1201,7 @@ int FS::rm(std::string filepath)
     {
         // check dir is empty and isnt a special ".." directory
         if (dirEmpty(workingDir[entryIndex]->first_blk) &&
-                workingDir[entryIndex]->file_name != DOTDOT)
+            workingDir[entryIndex]->file_name != DOTDOT)
         {
             fat[workingDir[entryIndex]->first_blk] = FAT_FREE;
             workingDir.erase(workingDir.begin() + entryIndex);
@@ -1327,7 +1315,10 @@ int FS::cd(std::string dirpath)
 {
 
     std::cout << "FS::cd(" << dirpath << ")\n";
-    if (parsePath(dirpath) == -1) {return 1;}
+    if (parsePath(dirpath) == -1)
+    {
+        return 1;
+    }
 
     return 0;
 }
