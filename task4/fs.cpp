@@ -913,9 +913,10 @@ dir_entry *FS::copyDirEntry(dir_entry *dir, std::string name, uint16_t first_blk
 // written on the following rows (ended with an empty row)
 int FS::create(std::string filepath)
 {
-
+    uint16_t origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(filepath);
     // throw error if file already exists
-    if (fileExist(filepath))
+    if (fileExist(srcName))
     {
         return 1;
     }
@@ -953,7 +954,7 @@ int FS::create(std::string filepath)
     filepath.push_back('\0');
     for (int i = 0; i < 56 && i < filepath.size(); i++)
     {
-        newEntry->file_name[i] = filepath[i];
+        newEntry->file_name[i] = srcName[i];
     }
     newEntry->first_blk = firstFatIndex;
     newEntry->size = contents.size();
@@ -963,7 +964,7 @@ int FS::create(std::string filepath)
     std::cout << "Added file to dir: " << currentNode->entry->file_name << std::endl;
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
-
+    changeWorkingDir(origin);
     return 0;
 }
 
@@ -1223,7 +1224,9 @@ int FS::rm(std::string filepath)
 int FS::append(std::string filepath1, std::string filepath2)
 {
     std::cout << "FS::append(" << filepath1 << "," << filepath2 << ")\n";
-    int entryIndex = findIndexWorkingDir(filepath1);
+    uint16_t origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(filepath1);
+    int entryIndex = findIndexWorkingDir(srcName);
     uint8_t block[4096];
 
     int fatIndex = workingDir[entryIndex]->first_blk;
@@ -1244,7 +1247,9 @@ int FS::append(std::string filepath1, std::string filepath2)
         fatIndex = fat[fatIndex];
     }
     contents.push_back('\0');
-    entryIndex = findIndexWorkingDir(filepath2);
+    changeWorkingDir(origin);
+    std::string dstName = parseTilFile(filepath2);
+    entryIndex = findIndexWorkingDir(dstName);
 
     // Returns last block in file and last index in the block
     findEOF(workingDir[entryIndex]->first_blk, result);
@@ -1257,6 +1262,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     workingDir[entryIndex]->size += contents.size();
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
+    changeWorkingDir(origin);
 
     return 0;
 }
@@ -1265,6 +1271,8 @@ int FS::append(std::string filepath1, std::string filepath2)
 // in the current directory
 int FS::mkdir(std::string dirpath)
 {
+    uint16_t origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(dirpath);
     std::cout << "FS::mkdir(" << dirpath << ")\n";
     int freeIndex = getFreeIndex();
     uint16_t parentBlock = currentNode->entry->first_blk;
@@ -1281,7 +1289,7 @@ int FS::mkdir(std::string dirpath)
     dirpath.push_back('\0');
     for (int i = 0; i < 56 && i < dirpath.size(); i++)
     {
-        newEntry->file_name[i] = dirpath[i];
+        newEntry->file_name[i] = srcName[i];
     }
     newEntry->first_blk = freeIndex;
     newEntry->size = '-';
@@ -1305,7 +1313,7 @@ int FS::mkdir(std::string dirpath)
     workingDir.push_back(dotDotDir);
     writeWorkingDirToBlock(freeIndex);
     // change back to currentDir
-    changeWorkingDir(parentBlock);
+    changeWorkingDir(origin);
 
     return 0;
 }
