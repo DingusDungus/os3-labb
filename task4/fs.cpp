@@ -316,6 +316,7 @@ int FS::parsePath(std::string path)
     return 0;
 }
 
+// returns filename from path, also changes working directory.
 std::string FS::parseTilFile(std::string path)
 {
     int index = 0;
@@ -1147,7 +1148,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
         std::cout << "Moving file..." << std::endl;
         workingDir.push_back(temp);
         temp = nullptr;
-        
+
     }
     else
     {
