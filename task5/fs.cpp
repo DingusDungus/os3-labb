@@ -61,7 +61,7 @@ void FS::deleteWorkingDir()
 
 dir_entry *FS::makeDotDotDir(uint16_t blk)
 {
-    std::cout << "Wrote DOTDOT to blk: " << blk << std::endl;
+    std::cout << "Made DOTDOT point to blk: " << blk << std::endl;
     dir_entry *dotDotEntry = new dir_entry;
     dotDotEntry->file_name[0] = '.';
     dotDotEntry->file_name[1] = '.';
@@ -1139,7 +1139,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::cp(" << sourcepath << "," << destpath << ")\n";
     // Tries to find file in rootblock
-    uint16_t prevBlock = currentNode->entry->first_blk;
+    uint16_t origin = currentNode->entry->first_blk;
     uint16_t first_blk = 0;
     uint8_t block[4096];
     int dstEntryIndex = 0;
@@ -1174,7 +1174,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
         }
         fatIndex = fat[fatIndex];
     }
-    changeWorkingDir(prevBlock);
+    changeWorkingDir(origin);
     std::string dstName = parseTilFile(destpath);
     dstEntryIndex = findIndexWorkingDir(dstName);
     destType = workingDir[dstEntryIndex]->type;
@@ -1194,7 +1194,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // copy over the dir entry, for file to file copy
         newEntry->first_blk = first_blk;
 
-        std::cout << "current block block is: " << prevBlock << std::endl;
+        std::cout << "current block block is: " << origin << std::endl;
         std::cout << "destination is block: " << destBlk << std::endl;
 
         workingDir.push_back(newEntry);
@@ -1219,7 +1219,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
     // save to disk
     writeWorkingDirToBlock(currentNode->entry->first_blk);
-    changeWorkingDir(prevBlock);
+    changeWorkingDir(origin);
 
     return 0;
 }
@@ -1474,6 +1474,7 @@ int FS::pwd()
 int FS::chmod(std::string accessrights, std::string filepath)
 {
     std::cout << "FS::chmod(" << accessrights << "," << filepath << ")\n";
+    uint16_t origin = currentNode->entry->first_blk;
     uint8_t rights = parseRights(accessrights);
 
     std::string srcName = parseTilFile(filepath);
@@ -1481,10 +1482,26 @@ int FS::chmod(std::string accessrights, std::string filepath)
     std::cout << rights << std::endl;
     // set access_rights
     workingDir[entryIndex]->access_rights = rights;
-    /* TODO:  make sure DOTDOT directory is mirrored
-     * and the other way around so no discrepency exists
-     * between the DOTDOT dir and the "real" dir.*/
-
     writeWorkingDirToBlock(currentNode->entry->first_blk);
+    /* Make sure DOTDOT directory is mirrored
+     * and the other way around so no discrepency exists
+     * between the DOTDOT dir and the "real" dir it references.*/
+    if(workingDir[entryIndex]->file_name == DOTDOT){
+        // TODO: needs fixing
+        changeWorkingDir(currentNode->parent->parent->entry->first_blk);
+        int dotDotIndex = findIndexWorkingDir(DOTDOT);
+        workingDir[dotDotIndex]->access_rights = rights;
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
+    }
+    // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
+    // so that it contains to have the same access_rights
+    else {
+        changeWorkingDir(workingDir[entryIndex]->first_blk);
+        int dotDotIndex = findIndexWorkingDir(DOTDOT);
+        workingDir[dotDotIndex]->access_rights = rights;
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
+    }
+
+    changeWorkingDir(origin);
     return 0;
 }
