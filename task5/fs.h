@@ -128,7 +128,7 @@ private:
     //Checks if dir is empty
     bool dirEmpty(uint16_t blk);
     //Choose rights out of param-string
-    int parseRights(std::string rights);
+    uint8_t parseRights(std::string rights);
     //Read rights of an access right-value
     std::string readRights(int rights);
     //Checks if access has read
