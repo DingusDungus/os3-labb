@@ -238,22 +238,65 @@ void FS::readInFatRoot()
     }
 }
 
+// returns a std:string vector containg all the dirs/files in a given path.
+std::vector<std::string> FS::splitPath(std::string path)
+{
+    std::vector<std::string> pathVector;
+    std::cout << "Path: " << path << std::endl;
+
+    // save root to pathVector if first char is '/'
+    if (path[0] == '/')
+    {
+        pathVector.push_back("/");
+        std::cout << "Added :" << path[0] << " to pathVector" << std::endl;
+        path.erase(0, 1); // remove first char in string.
+    }
+
+    size_t pos = 0;
+    std::string entry;
+    while ((pos = path.find("/")) != std::string::npos)
+    {
+        entry = path.substr(0, pos);
+        // ignore empty strings
+        if (path != "")
+        {
+            pathVector.push_back(entry);
+            std::cout << "Added :" << entry << " to pathVector" << std::endl;
+        }
+        path.erase(0, pos + 1);
+    }
+    // ignore empty strings
+    if (path != "")
+    {
+        std::cout << "Added :" << path << " to pathVector" << std::endl;
+        pathVector.push_back(entry);
+    }
+    std::cout << "Vector size: " << pathVector.size() << std::endl;
+
+    return pathVector;
+}
+
+// parses a filepath and calls changeDirectory()
+// to change current workingDir to last directory in path
+// if it exists. if doesnt exist it returns -1
 int FS::parsePath(std::string path)
 {
     int index = 0;
     std::string dirName;
     int origin = currentNode->entry->first_blk;
+    // if first char is '/' then we know we start in root.
     if (path[0] == '/')
     {
-        changeWorkingDir(0);
+        changeWorkingDir(ROOT_BLOCK);
         index++;
     }
     if (path[path.size() - 1] != '/')
     {
         std::cout << "Error improper syntax: Path did not end with '/'\n";
-        return 1;
+        changeWorkingDir(origin);
+        return -1;
     }
-    for (;index < path.size(); index++)
+    for (; index < path.size(); index++)
     {
         if (path[index] != '/' && index != (path.size()))
         {
@@ -261,11 +304,11 @@ int FS::parsePath(std::string path)
         }
         else
         {
-            if (changeDirectory(dirName))
+            if (changeDirectory(dirName) == -1)
             {
                 std::cout << dirName << " doesn't exist!!!\n";
                 changeWorkingDir(origin);
-                return 1;
+                return -1;
             }
             dirName.clear();
         }
@@ -273,12 +316,46 @@ int FS::parsePath(std::string path)
     return 0;
 }
 
+// returns filename from path, also changes working directory.
+std::string FS::parseTilFile(std::string path)
+{
+    int index = 0;
+    std::string dirName;
+    int origin = currentNode->entry->first_blk;
+    // if first char is '/' then we know we start in root.
+    if (path[0] == '/')
+    {
+        changeWorkingDir(ROOT_BLOCK);
+        index++;
+    }
+    for (; index < path.size(); index++)
+    {
+        if (path[index] != '/')
+        {
+            dirName += path[index];
+        }
+        else
+        {
+            if (changeDirectory(dirName) == -1)
+            {
+                std::cout << dirName << " doesn't exist!!!\n";
+                changeWorkingDir(origin);
+                return "";
+            }
+            dirName.clear();
+        }
+    }
+    return dirName;
+}
+
+// checks if file exists and is a directory, then changes directory
+// return -1 if it doesnt exists or is a file.
 int FS::changeDirectory(std::string dirName)
 {
     int index = findIndexWorkingDir(dirName);
     if (index == -1)
     {
-        return 1;
+        return -1;
     }
 
     if (workingDir[index]->type == TYPE_DIR)
@@ -286,6 +363,11 @@ int FS::changeDirectory(std::string dirName)
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
         std::cout << currentNode->entry->file_name << std::endl;
+    }
+    else
+    {
+        std::cout << "Error: Entry is a file" << std::endl;
+        return -1;
     }
     return 0;
 }
@@ -428,6 +510,8 @@ void FS::changeWorkingDir(uint16_t blk)
 
 void FS::initTree()
 {
+    // we need to initialize root treeNode so it has a parent and a dir_entry,
+    // think thats why we get unitialized bytes.
     root = new treeNode;
     root->parent = root;
     currentNode = root;
@@ -443,31 +527,35 @@ void FS::initTree()
     newDir->type = TYPE_DIR;
     newDir->access_rights = READ + WRITE;
     root->entry = newDir;
-    int size = workingDir.size();
+
+    // start recursion
     initTreeContinued(root);
+
     changeWorkingDir(ROOT_BLOCK);
     std::cout << "Ended\n";
 }
 
 void FS::initTreeContinued(treeNode *pBranch)
 {
-    int size = workingDir.size();
-    std::cout << pBranch->entry->file_name << std::endl;
+    std::cout << "Current branch: " << pBranch->entry->file_name << std::endl;
 
-    for (int i = 0; i < size; i++)
+    // read in working dir.
+    for (int i = 0; i < workingDir.size(); i++)
     {
         if (workingDir[i]->type == TYPE_DIR && workingDir[i]->file_name != DOTDOT)
         {
             treeNode *newBranch = new treeNode(pBranch, workingDir[i]);
-            std::cout << workingDir[i]->file_name << std::endl;
+            std::cout << "Adding to children: " << workingDir[i]->file_name << std::endl;
 
             pBranch->children.push_back(newBranch);
-
-            initWorkingDir(workingDir[i]->first_blk);
-            std::cout << std::endl;
-            initTreeContinued(newBranch);
-            initWorkingDir(newBranch->entry->first_blk);
         }
+    }
+    // call recursively for all children directories that are not DOTDOT.
+    for (int i = 0; i < pBranch->children.size(); i++)
+    {
+        initWorkingDir(pBranch->children[i]->entry->first_blk);
+        std::cout << "Recursion: " << pBranch->children[i]->entry->file_name << std::endl;
+        initTreeContinued(pBranch->children[i]);
     }
 }
 
@@ -612,6 +700,10 @@ int FS::format()
     readInFatRoot();
     initTree();
     changeWorkingDir(0);
+    // create DOTDOT entry for ROOT.
+    dir_entry *dotDotDir = makeDotDotDir(ROOT_BLOCK);
+    workingDir.push_back(dotDotDir);
+    writeWorkingDirToBlock(ROOT_BLOCK);
 
     return 0;
 }
@@ -649,6 +741,17 @@ void FS::testDisk()
         std::cout << fat[i] << " ";
     }
     std::cout << " FAT\n";
+
+    std::cout << "------------------------------------------" << std::endl;
+    std::cout << "Split path string test:" << std::endl;
+    splitPath("/dir1/dir2/dir3/dir4/");
+    std::cout << "------------------------------------------" << std::endl;
+    splitPath("dir1/dir2/dir3/dir4/");
+    std::cout << "------------------------------------------" << std::endl;
+    splitPath("/dir1/dir2/dir3/dir4");
+    std::cout << "------------------------------------------" << std::endl;
+    splitPath("dir1/dir2/dir3/dir4");
+    std::cout << "------------------------------------------" << std::endl;
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -704,7 +807,7 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16
 }
 
 // help function for cp return first block index
-int FS::writeBlocksFromString(std::string filepath, std::string contents)
+int FS::writeBlocksFromString(std::string contents)
 {
     uint8_t block[4096];
     int firstFatIndex = 0;
@@ -811,9 +914,10 @@ dir_entry *FS::copyDirEntry(dir_entry *dir, std::string name, uint16_t first_blk
 // written on the following rows (ended with an empty row)
 int FS::create(std::string filepath)
 {
-
+    uint16_t origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(filepath);
     // throw error if file already exists
-    if (fileExist(filepath))
+    if (fileExist(srcName))
     {
         return 1;
     }
@@ -842,7 +946,7 @@ int FS::create(std::string filepath)
     contents.push_back('\0');
 
     // create new file and save its first block.
-    firstFatIndex = writeBlocksFromString(filepath, contents);
+    firstFatIndex = writeBlocksFromString(contents);
 
     std::cout << "Added contents to blocks\n";
     std::cout << "Wrote file to blk: " << firstFatIndex << std::endl;
@@ -851,7 +955,7 @@ int FS::create(std::string filepath)
     filepath.push_back('\0');
     for (int i = 0; i < 56 && i < filepath.size(); i++)
     {
-        newEntry->file_name[i] = filepath[i];
+        newEntry->file_name[i] = srcName[i];
     }
     newEntry->first_blk = firstFatIndex;
     newEntry->size = contents.size();
@@ -861,23 +965,26 @@ int FS::create(std::string filepath)
     std::cout << "Added file to dir: " << currentNode->entry->file_name << std::endl;
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
-
+    changeWorkingDir(origin);
     return 0;
 }
 
 // cat <filepath> reads the content of a file and prints it on the screen
 int FS::cat(std::string filepath)
 {
+    int origin = currentNode->entry->first_blk;
     std::cout << "FS::cat(" << filepath << ")\n";
+    std::string fileName = parseTilFile(filepath);
+    std::cout << fileName << std::endl;
     // Tries to find file in rootblock
-    int first_blk = findBlockWorkingDir(filepath);
+    int first_blk = findBlockWorkingDir(fileName);
 
     // if file cannot be found, throw error.
     if (first_blk == -1)
     {
         return 1;
     }
-    int index = findIndexWorkingDir(filepath);
+    int index = findIndexWorkingDir(fileName);
     if (workingDir[index]->type == TYPE_DIR)
     {
         return 2;
@@ -895,6 +1002,7 @@ int FS::cat(std::string filepath)
         }
         fatIndex = fat[fatIndex];
     }
+    changeWorkingDir(origin);
     return 0;
 }
 
@@ -934,46 +1042,25 @@ int FS::cp(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::cp(" << sourcepath << "," << destpath << ")\n";
     // Tries to find file in rootblock
-
+    uint16_t prevBlock = currentNode->entry->first_blk;
     uint16_t first_blk = 0;
     uint8_t block[4096];
     int dstEntryIndex = 0;
     int srcEntryIndex = 0;
     std::string contents = "";
     uint8_t destType = 0;
-    srcEntryIndex = findIndexWorkingDir(sourcepath);
-    dstEntryIndex = findIndexWorkingDir(destpath);
+    std::string srcName = parseTilFile(sourcepath);
+    srcEntryIndex = findIndexWorkingDir(srcName);
     // Tries to find file in rootblock
-    first_blk = findBlockWorkingDir(sourcepath);
-    uint16_t destBlk = findBlockWorkingDir(destpath);
-    uint16_t prevBlock = currentNode->entry->first_blk;
+    first_blk = findBlockWorkingDir(srcName);
     // if source file cannot be found, or is a directory throw error.
-    if (!fileExist(sourcepath) || workingDir[srcEntryIndex]->type == TYPE_DIR)
-    {
-        return 1;
-    }
-    // throw error if destination already exists and is a file
-    if (fileExist(destpath) && workingDir[dstEntryIndex]->type == TYPE_FILE)
-    {
-        return 1;
-    }
-    // if dest file not found, dont set destType
-    if (dstEntryIndex != -1)
-    {
-        uint8_t destType = workingDir[dstEntryIndex]->type;
-    }
-
-    if (destpath == "..")
-    {
-        // set parents block as destination
-        destBlk = currentNode->parent->entry->first_blk;
-        // set type as a directory
-        destType = 1;
-        // set destIndex to -2 to pass exists check.
-        dstEntryIndex = -2;
-    }
-
     // read in all the from the sourcefile blocks to contents.
+
+    dir_entry *newEntry = new dir_entry;
+    newEntry->access_rights = workingDir[srcEntryIndex]->access_rights;
+    newEntry->size = workingDir[srcEntryIndex]->size;
+    newEntry->type = workingDir[srcEntryIndex]->type;
+
     int fatIndex = first_blk;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
@@ -985,32 +1072,43 @@ int FS::cp(std::string sourcepath, std::string destpath)
         }
         fatIndex = fat[fatIndex];
     }
-
+    changeWorkingDir(prevBlock);
+    std::string dstName = parseTilFile(destpath);
+    dstEntryIndex = findIndexWorkingDir(dstName);
+    destType = workingDir[dstEntryIndex]->type;
+    uint16_t destBlk = findBlockWorkingDir(dstName);
     // if destination exists and is a directory
-    if (fileExist(destpath) || dstEntryIndex == -2 && destType == TYPE_DIR)
+    if (dstName.size() == 0)
     {
         // copy to a directory
         // create new file and save its first block. for file to dir copy
-        first_blk = writeBlocksFromString(sourcepath, contents);
+        pwd();
+
+        first_blk = writeBlocksFromString(contents);
+        for (int i = 0; i < 56; i++)
+        {
+            newEntry->file_name[i] = srcName[i];
+        }
         // copy over the dir entry, for file to file copy
-        dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex], sourcepath, first_blk);
+        newEntry->first_blk = first_blk;
 
         std::cout << "current block block is: " << prevBlock << std::endl;
         std::cout << "destination is block: " << destBlk << std::endl;
 
-        initWorkingDir(destBlk);
         workingDir.push_back(newEntry);
-        writeWorkingDirToBlock(destBlk);
-        initWorkingDir(prevBlock);
     }
     // otherwise we just copy file in currentDir
     else
     {
         // just copying file in current dir
         // create new file and save its first block. for file to file copy
-        first_blk = writeBlocksFromString(destpath, contents);
+        first_blk = writeBlocksFromString(contents);
+        for (int i = 0; i < 56; i++)
+        {
+            newEntry->file_name[i] = dstName[i];
+        }
         // copy over the dir entry, for file to file copy
-        dir_entry *newEntry = copyDirEntry(workingDir[srcEntryIndex], destpath, first_blk);
+        newEntry->first_blk = first_blk;
 
         std::cout << "destination is currentDir" << std::endl;
 
@@ -1019,6 +1117,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
     // save to disk
     writeWorkingDirToBlock(currentNode->entry->first_blk);
+    changeWorkingDir(prevBlock);
 
     return 0;
 }
@@ -1028,44 +1127,30 @@ int FS::cp(std::string sourcepath, std::string destpath)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
-    int destIndex = findIndexWorkingDir(destpath);
-    int srcIndex = findIndexWorkingDir(sourcepath);
-    int destBlock = findBlockWorkingDir(destpath);
-    uint16_t srcBlock = currentNode->entry->first_blk;
-    uint8_t destType = 0;
+    int origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(sourcepath);
+    int srcIndex = findIndexWorkingDir(srcName);
+    if (srcName.size() == 0 || srcIndex == -1)
+    {
+        std::cout << "First parameter invalid\n";
+        return 1;
+    }
+    dir_entry *temp = workingDir[srcIndex];
+    workingDir.erase(workingDir.begin() + srcIndex);
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
+    changeWorkingDir(origin);
+    std::string dstName = parseTilFile(destpath);
     // if dest file not found, dont set destType
-    if (destIndex != -1)
-    {
-        destType = workingDir[destIndex]->type;
-    }
 
-    if (destpath == "..")
-    {
-        // set parents block as destination
-        destBlock = currentNode->parent->entry->first_blk;
-        // set type as a directory
-        destType = 1;
-        // set destIndex to -2 to pass exists check.
-        destIndex = -2;
-    }
-
-    if (destIndex != -1 && srcIndex != -1 && destType == TYPE_DIR)
+    if (dstName.size() == 0)
     {
         // copy over the dir entry, for file to file copy
         std::cout << "Moving file..." << std::endl;
-        dir_entry *fileEntry = copyDirEntry(workingDir[srcIndex], sourcepath);
+        workingDir.push_back(temp);
+        temp = nullptr;
 
-        std::cout << "current block is: " << srcBlock << std::endl;
-        std::cout << "destination is block: " << destBlock << std::endl;
-
-        workingDir.erase(workingDir.begin() + srcIndex);
-        writeWorkingDirToBlock(srcBlock);
-        initWorkingDir(destBlock);
-        workingDir.push_back(fileEntry);
-        writeWorkingDirToBlock(destBlock);
-        initWorkingDir(srcBlock);
     }
-    else if (srcIndex != -1 && destIndex == -1)
+    else
     {
         std::cout << "Renaming file..." << std::endl;
         int workingDirIndex = findIndexWorkingDir(sourcepath);
@@ -1074,19 +1159,19 @@ int FS::mv(std::string sourcepath, std::string destpath)
             // reset filename to empty
             for (int i = 0; i < 56; i++)
             {
-                workingDir[workingDirIndex]->file_name[i] = 0;
+                temp->file_name[i] = 0;
             }
             // rename file
-            destpath.push_back('\0'); // add null termination to filename
             for (int i = 0; i < destpath.size() && i < 56; i++)
             {
-                workingDir[workingDirIndex]->file_name[i] = destpath[i];
+                temp->file_name[i] = dstName[i];
             }
         }
+        workingDir.push_back(temp);
     }
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
-
+    changeWorkingDir(origin);
     return 0;
 }
 
@@ -1114,9 +1199,11 @@ int FS::rm(std::string filepath)
         // Erases the dir entry from the vector
         workingDir.erase(workingDir.begin() + entryIndex);
     }
-    else
+    else if (workingDir[entryIndex]->type == TYPE_DIR)
     {
-        if (dirEmpty(workingDir[entryIndex]->first_blk))
+        // check dir is empty and isnt a special ".." directory
+        if (dirEmpty(workingDir[entryIndex]->first_blk) &&
+            workingDir[entryIndex]->file_name != DOTDOT)
         {
             fat[workingDir[entryIndex]->first_blk] = FAT_FREE;
             workingDir.erase(workingDir.begin() + entryIndex);
@@ -1127,6 +1214,7 @@ int FS::rm(std::string filepath)
         }
     }
 
+    // write to disk
     writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     return 0;
@@ -1137,7 +1225,9 @@ int FS::rm(std::string filepath)
 int FS::append(std::string filepath1, std::string filepath2)
 {
     std::cout << "FS::append(" << filepath1 << "," << filepath2 << ")\n";
-    int entryIndex = findIndexWorkingDir(filepath1);
+    uint16_t origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(filepath1);
+    int entryIndex = findIndexWorkingDir(srcName);
     uint8_t block[4096];
 
     int fatIndex = workingDir[entryIndex]->first_blk;
@@ -1158,7 +1248,9 @@ int FS::append(std::string filepath1, std::string filepath2)
         fatIndex = fat[fatIndex];
     }
     contents.push_back('\0');
-    entryIndex = findIndexWorkingDir(filepath2);
+    changeWorkingDir(origin);
+    std::string dstName = parseTilFile(filepath2);
+    entryIndex = findIndexWorkingDir(dstName);
 
     // Returns last block in file and last index in the block
     findEOF(workingDir[entryIndex]->first_blk, result);
@@ -1171,6 +1263,7 @@ int FS::append(std::string filepath1, std::string filepath2)
     workingDir[entryIndex]->size += contents.size();
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
+    changeWorkingDir(origin);
 
     return 0;
 }
@@ -1179,6 +1272,8 @@ int FS::append(std::string filepath1, std::string filepath2)
 // in the current directory
 int FS::mkdir(std::string dirpath)
 {
+    uint16_t origin = currentNode->entry->first_blk;
+    std::string srcName = parseTilFile(dirpath);
     std::cout << "FS::mkdir(" << dirpath << ")\n";
     int freeIndex = getFreeIndex();
     uint16_t parentBlock = currentNode->entry->first_blk;
@@ -1195,7 +1290,7 @@ int FS::mkdir(std::string dirpath)
     dirpath.push_back('\0');
     for (int i = 0; i < 56 && i < dirpath.size(); i++)
     {
-        newEntry->file_name[i] = dirpath[i];
+        newEntry->file_name[i] = srcName[i];
     }
     newEntry->first_blk = freeIndex;
     newEntry->size = '-';
@@ -1219,7 +1314,7 @@ int FS::mkdir(std::string dirpath)
     workingDir.push_back(dotDotDir);
     writeWorkingDirToBlock(freeIndex);
     // change back to currentDir
-    changeWorkingDir(parentBlock);
+    changeWorkingDir(origin);
 
     return 0;
 }
@@ -1229,7 +1324,10 @@ int FS::cd(std::string dirpath)
 {
 
     std::cout << "FS::cd(" << dirpath << ")\n";
-    return parsePath(dirpath);
+    if (parsePath(dirpath) == -1)
+    {
+        return 1;
+    }
 
     return 0;
 }
