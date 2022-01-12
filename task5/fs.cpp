@@ -296,6 +296,7 @@ int FS::parsePath(std::string path)
         changeWorkingDir(origin);
         return -1;
     }
+    // loop through the directories in the path and cd into them
     for (; index < path.size(); index++)
     {
         if (path[index] != '/' && index != (path.size()))
@@ -358,11 +359,20 @@ int FS::changeDirectory(std::string dirName)
         return -1;
     }
 
-    if (workingDir[index]->type == TYPE_DIR)
+    // only cd if we have access and its a directory.
+    if (workingDir[index]->type == TYPE_DIR &&
+            executePermitted(workingDir[index]->access_rights))
     {
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
         std::cout << currentNode->entry->file_name << std::endl;
+    }
+    // error if no execute access to dir.
+    else if (workingDir[index]->type == TYPE_DIR &&
+            !executePermitted(workingDir[index]->access_rights))
+    {
+        std::cout << "Error: Permission denied, no access rights" << std::endl;
+        return -1;
     }
     else
     {
@@ -671,9 +681,9 @@ bool FS::fileExist(std::string filename)
     return found;
 }
 
-int FS::parseRights(std::string rights)
+uint8_t FS::parseRights(std::string rights)
 {
-    int retRights = 0;
+    uint8_t retRights = 0; // read (0x04), write (0x02), execute (0x01)
     if (rights[0] == 'r')
     {
         retRights += READ;
@@ -1105,7 +1115,7 @@ int FS::ls()
             std::cout
                 << workingDir[i]->file_name
                 << '\t' << "dir"
-                << '\t' << workingDir[i]->access_rights
+                << '\t' << readRights(workingDir[i]->access_rights)
                 << '\t' << '\t' << (char)workingDir[i]->size
                 << '\n';
         }
@@ -1464,12 +1474,16 @@ int FS::pwd()
 int FS::chmod(std::string accessrights, std::string filepath)
 {
     std::cout << "FS::chmod(" << accessrights << "," << filepath << ")\n";
-    int rights = parseRights(accessrights);
+    uint8_t rights = parseRights(accessrights);
 
     std::string srcName = parseTilFile(filepath);
     int entryIndex = findIndexWorkingDir(srcName);
     std::cout << rights << std::endl;
+    // set access_rights
     workingDir[entryIndex]->access_rights = rights;
+    /* TODO:  make sure DOTDOT directory is mirrored
+     * and the other way around so no discrepency exists
+     * between the DOTDOT dir and the "real" dir.*/
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     return 0;
