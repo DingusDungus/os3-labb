@@ -130,7 +130,7 @@ bool FS::dirEmpty(uint16_t blk)
 {
     uint8_t block[4096];
     disk.read(blk, block);
-    if (block[0] == 0)
+    if (block[64] == 0)
     {
         return true;
     }
