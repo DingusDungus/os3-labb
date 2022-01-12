@@ -671,6 +671,16 @@ bool FS::fileExist(std::string filename)
     return found;
 }
 
+int FS::parseRights(std::string rights)
+{
+    int retRights = 0;
+    if (rights[0] == 'r') { rights += READ; }
+    if (rights[1] == 'w') { rights += WRITE; }
+    if (rights[2] == 'x') { rights += EXECUTE; }
+    
+    return retRights;
+}
+
 // formats the disk, i.e., creates an empty file system
 int FS::format()
 {
@@ -976,6 +986,7 @@ int FS::cat(std::string filepath)
     std::cout << "FS::cat(" << filepath << ")\n";
     std::string fileName = parseTilFile(filepath);
     std::cout << fileName << std::endl;
+    
     // Tries to find file in rootblock
     int first_blk = findBlockWorkingDir(fileName);
 
@@ -988,6 +999,11 @@ int FS::cat(std::string filepath)
     if (workingDir[index]->type == TYPE_DIR)
     {
         return 2;
+    }
+    if (workingDir[index]->access_rights < READ)
+    {
+        std::cout << "Not allowed to read this file\n";
+        return 3;
     }
 
     uint8_t block[4096];
@@ -1363,5 +1379,10 @@ int FS::pwd()
 int FS::chmod(std::string accessrights, std::string filepath)
 {
     std::cout << "FS::chmod(" << accessrights << "," << filepath << ")\n";
+    int rights = parseRights(accessrights);
+
+    std::string srcName = parseTilFile(filepath);
+    int entryIndex = findIndexWorkingDir(srcName);
+    workingDir[entryIndex]->access_rights = rights;
     return 0;
 }

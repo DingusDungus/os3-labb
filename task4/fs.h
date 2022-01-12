@@ -127,6 +127,8 @@ private:
     void findEOF(uint16_t first_blk, uint16_t *result);
     //Checks if dir is empty
     bool dirEmpty(uint16_t blk);
+    //Choose rights out of param-string
+    int parseRights(std::string rights);
 
 public:
     FS();

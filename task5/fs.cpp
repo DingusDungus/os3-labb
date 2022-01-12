@@ -671,6 +671,85 @@ bool FS::fileExist(std::string filename)
     return found;
 }
 
+int FS::parseRights(std::string rights)
+{
+    int retRights = 0;
+    if (rights[0] == 'r')
+    {
+        retRights += READ;
+        std::cout << "Hit\n";
+    }
+    if (rights[1] == 'w')
+    {
+        retRights += WRITE;
+        std::cout << "Hit\n";
+    }
+    if (rights[2] == 'x')
+    {
+        retRights += EXECUTE;
+        std::cout << "Hit\n";
+    }
+
+    return retRights;
+}
+
+std::string FS::readRights(int rights)
+{
+    std::string retRights = "---";
+    int mask = 1 << 2;
+    int maskedRights = rights & mask;
+    if (maskedRights >> 2 == 1)
+    {
+        retRights[0] = 'r';
+    }
+    mask = 1 << 1;
+    maskedRights = rights & mask;
+    if (maskedRights >> 1 == 1)
+    {
+        retRights[1] = 'w';
+    }
+    mask = 1 << 0;
+    maskedRights = rights & mask;
+    if (maskedRights >> 0 == 1)
+    {
+        retRights[2] = 'x';
+    }
+    return retRights;
+}
+
+bool FS::readPermitted(int rights)
+{
+    int mask = 1 << 2;
+    int maskedRights = rights & mask;
+    if (maskedRights >> 2 == 1)
+    {
+        return true;
+    }
+    return false;
+}
+
+bool FS::writePermitted(int rights)
+{
+    int mask = 1 << 1;
+    int maskedRights = rights & mask;
+    if (maskedRights >> 1 == 1)
+    {
+        return true;
+    }
+    return false;
+}
+
+bool FS::executePermitted(int rights)
+{
+    int mask = 1 << 0;
+    int maskedRights = rights & mask;
+    if (maskedRights >> 0 == 1)
+    {
+        return true;
+    }
+    return false;
+}
+
 // formats the disk, i.e., creates an empty file system
 int FS::format()
 {
@@ -976,6 +1055,7 @@ int FS::cat(std::string filepath)
     std::cout << "FS::cat(" << filepath << ")\n";
     std::string fileName = parseTilFile(filepath);
     std::cout << fileName << std::endl;
+
     // Tries to find file in rootblock
     int first_blk = findBlockWorkingDir(fileName);
 
@@ -988,6 +1068,11 @@ int FS::cat(std::string filepath)
     if (workingDir[index]->type == TYPE_DIR)
     {
         return 2;
+    }
+    if (!readPermitted(workingDir[index]->access_rights))
+    {
+        std::cout << "Not allowed to read this file\n";
+        return 3;
     }
 
     uint8_t block[4096];
@@ -1010,7 +1095,7 @@ int FS::cat(std::string filepath)
 int FS::ls()
 {
     std::cout << "FS::ls()\n";
-    std::cout << "name\ttype\tsize\n";
+    std::cout << "name\ttype\taccess_rights\tsize\n";
     // print files and directories
     for (int i = 0; i < workingDir.size(); i++)
     {
@@ -1020,7 +1105,8 @@ int FS::ls()
             std::cout
                 << workingDir[i]->file_name
                 << '\t' << "dir"
-                << '\t' << (char)workingDir[i]->size
+                << '\t' << workingDir[i]->access_rights
+                << '\t' << '\t' << (char)workingDir[i]->size
                 << '\n';
         }
         else
@@ -1029,7 +1115,8 @@ int FS::ls()
             std::cout
                 << workingDir[i]->file_name
                 << '\t' << "file"
-                << '\t' << workingDir[i]->size
+                << '\t' << readRights(workingDir[i]->access_rights)
+                << '\t' << '\t' << workingDir[i]->size
                 << '\n';
         }
     }
@@ -1051,6 +1138,11 @@ int FS::cp(std::string sourcepath, std::string destpath)
     uint8_t destType = 0;
     std::string srcName = parseTilFile(sourcepath);
     srcEntryIndex = findIndexWorkingDir(srcName);
+    if (!readPermitted(workingDir[srcEntryIndex]->access_rights))
+    {
+        std::cout << "Not allowed to copy this file\n";
+        return 1;
+    }
     // Tries to find file in rootblock
     first_blk = findBlockWorkingDir(srcName);
     // if source file cannot be found, or is a directory throw error.
@@ -1148,7 +1240,6 @@ int FS::mv(std::string sourcepath, std::string destpath)
         std::cout << "Moving file..." << std::endl;
         workingDir.push_back(temp);
         temp = nullptr;
-
     }
     else
     {
@@ -1228,6 +1319,11 @@ int FS::append(std::string filepath1, std::string filepath2)
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(filepath1);
     int entryIndex = findIndexWorkingDir(srcName);
+    if (!readPermitted(workingDir[entryIndex]->access_rights))
+    {
+        std::cout << "Not allowed to read src file\n";
+        return 1;
+    }
     uint8_t block[4096];
 
     int fatIndex = workingDir[entryIndex]->first_blk;
@@ -1251,6 +1347,11 @@ int FS::append(std::string filepath1, std::string filepath2)
     changeWorkingDir(origin);
     std::string dstName = parseTilFile(filepath2);
     entryIndex = findIndexWorkingDir(dstName);
+    if (!writePermitted(workingDir[entryIndex]->access_rights))
+    {
+        std::cout << "Not allowed to write to destination file\n";
+        return 2;
+    }
 
     // Returns last block in file and last index in the block
     findEOF(workingDir[entryIndex]->first_blk, result);
@@ -1363,5 +1464,13 @@ int FS::pwd()
 int FS::chmod(std::string accessrights, std::string filepath)
 {
     std::cout << "FS::chmod(" << accessrights << "," << filepath << ")\n";
+    int rights = parseRights(accessrights);
+
+    std::string srcName = parseTilFile(filepath);
+    int entryIndex = findIndexWorkingDir(srcName);
+    std::cout << rights << std::endl;
+    workingDir[entryIndex]->access_rights = rights;
+
+    writeWorkingDirToBlock(currentNode->entry->first_blk);
     return 0;
 }
