@@ -61,7 +61,7 @@ void FS::deleteWorkingDir()
 
 dir_entry *FS::makeDotDotDir(uint16_t blk)
 {
-    std::cout << "Wrote directory to blk: " << blk << std::endl;
+    std::cout << "Wrote DOTDOT to blk: " << blk << std::endl;
     dir_entry *dotDotEntry = new dir_entry;
     dotDotEntry->file_name[0] = '.';
     dotDotEntry->file_name[1] = '.';
@@ -69,7 +69,7 @@ dir_entry *FS::makeDotDotDir(uint16_t blk)
 
     dotDotEntry->first_blk = blk;
     dotDotEntry->size = '-';
-    dotDotEntry->access_rights = 0x06;
+    dotDotEntry->access_rights = 0x07;
     dotDotEntry->type = 1;
 
     return dotDotEntry;
@@ -1405,7 +1405,7 @@ int FS::mkdir(std::string dirpath)
     }
     newEntry->first_blk = freeIndex;
     newEntry->size = '-';
-    newEntry->access_rights = 0x06;
+    newEntry->access_rights = 0x07;
     newEntry->type = 1;
     workingDir.push_back(newEntry);
     std::cout << "Added contents to dir: " << dirpath << std::endl;
