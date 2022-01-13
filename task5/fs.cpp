@@ -1545,6 +1545,7 @@ int FS::chmod(std::string accessrights, std::string filepath)
 
     std::string srcName = parseTilFile(filepath);
     int entryIndex = findIndexWorkingDir(srcName);
+    if (entryIndex == -1) { std::cout << "File doesn't exist\n"; return 1;}
     // set access_rights
     workingDir[entryIndex]->access_rights = rights;
     writeWorkingDirToBlock(currentNode->entry->first_blk);
