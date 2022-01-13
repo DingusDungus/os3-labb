@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <stack>
 #include "fs.h"
 
 FS::FS()
@@ -427,6 +428,36 @@ void FS::initWorkingDir(uint16_t blk)
     }
 }
 
+treeNode* FS::BFS(uint16_t blk)
+{
+    std::cout << "BFS search started..." << std::endl;
+    if (root == nullptr) {
+        return nullptr;
+    }
+    std::stack<treeNode*> s;
+    s.push(root);
+
+    while (!s.empty()) {
+        treeNode* current = s.top();
+        std::cout << current->entry->file_name << std::endl;
+        if (current->entry->first_blk == blk) {
+            std::cout << "BFS search ended..." << std::endl;
+            return current;
+        }
+        s.pop();
+
+        for (int i = 0; i < current->children.size(); i++) {
+            if(current->children[i]->entry->type == TYPE_DIR &&
+            current->children[i]->entry->file_name != DOTDOT)
+            {
+                s.push(current->children[i]);
+            }
+        }
+    }
+    std::cout << "BFS search ended..." << std::endl;
+    return nullptr;
+}
+
 int FS::resetWorkingDir(uint16_t blk)
 {
     updateFat();
@@ -456,8 +487,12 @@ int FS::resetWorkingDir(uint16_t blk)
             }
         }
     }
-    // if not found we search the tree for the directory.
+    // if not already found we search the tree for the directory.
     if (!found){
+        treeNode* node = BFS(blk);
+        if(node != nullptr){
+            currentNode = node;
+        }
 
     }
 
@@ -521,13 +556,16 @@ void FS::changeWorkingDir(uint16_t blk)
 
     uint8_t block[4096];
 
+    bool found = false;
     if (blk == ROOT_BLOCK)
     {
         currentNode = root;
+        found = true;
     }
     else if (blk == currentNode->parent->entry->first_blk)
     {
         currentNode = currentNode->parent;
+        found = true;
     }
     else
     {
@@ -536,9 +574,18 @@ void FS::changeWorkingDir(uint16_t blk)
             if (currentNode->children[i]->entry->first_blk == blk)
             {
                 currentNode = currentNode->children[i];
+                found = true;
                 break;
             }
         }
+    }
+    // if not already found we search the tree for the directory.
+    if (!found){
+        treeNode* node = BFS(blk);
+        if(node != nullptr){
+            currentNode = node;
+        }
+
     }
 
     deleteWorkingDir();

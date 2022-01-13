@@ -99,6 +99,8 @@ private:
     // recursively goes through a workingDir changing
     // all its directories dotdot entries access_rights
     int setRecursiveRights(uint16_t workDir_blk, uint8_t rights);
+    // help function for searching tree.
+    treeNode* BFS(uint16_t blk);
 
     // search tree for directory with first_blk that matches
     // and CDs to it and sets it as current node
