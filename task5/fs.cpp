@@ -1490,19 +1490,30 @@ int FS::chmod(std::string accessrights, std::string filepath)
     uint16_t origin = currentNode->entry->first_blk;
     uint8_t rights = parseRights(accessrights);
 
+    // special case if we get root as path
+    if (filepath == "/"){
+        changeWorkingDir(ROOT_BLOCK);
+        root->entry->access_rights = rights;
+        int dotDotIndex = findIndexWorkingDir(DOTDOT);
+        workingDir[dotDotIndex]->access_rights = rights;
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
+
+        changeWorkingDir(origin);
+        return 0;
+    }
+
     std::string srcName = parseTilFile(filepath);
     int entryIndex = findIndexWorkingDir(srcName);
-    std::cout << rights << std::endl;
     // set access_rights
     workingDir[entryIndex]->access_rights = rights;
     writeWorkingDirToBlock(currentNode->entry->first_blk);
-    /* Make sure DOTDOT directory is mirrored
-     * and the other way around so no discrepency exists
-     * between the DOTDOT dir and the "real" dir it references.*/
+    // Make sure DOTDOT directory is mirrored
+    // and the other way around so no discrepency exists
+    // between the DOTDOT dir and the "real" dir it references.
     if (workingDir[entryIndex]->file_name == DOTDOT &&
             workingDir[entryIndex]->type == TYPE_DIR)
     {
-        // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
+        // Find the dir with the same block as the dotDotEntry and change it aswell.
         uint16_t dir_blk = workingDir[entryIndex]->first_blk;
         changeWorkingDir(currentNode->parent->parent->entry->first_blk);
         int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
