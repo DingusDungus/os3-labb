@@ -281,6 +281,10 @@ std::vector<std::string> FS::splitPath(std::string path)
 // if it exists. if doesnt exist it returns -1
 int FS::parsePath(std::string path)
 {
+    if(path == "/"){
+        changeWorkingDir(ROOT_BLOCK);
+        return 0;
+    }
     if (path[path.length() - 1] == '/')
     {
         std::cout << "Error: No destination directory selected\n";
