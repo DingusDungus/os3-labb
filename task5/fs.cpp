@@ -290,11 +290,9 @@ int FS::parsePath(std::string path)
         std::cout << "Error: No destination directory selected\n";
         return -1;
     }
-    int index = 0;
     std::string dirName;
     int origin = currentNode->entry->first_blk;
     dirName = parseTilFile(path);
-    int entryIndex = findIndexWorkingDir(dirName);
 
     if (changeDirectory(dirName) == -1)
     {
@@ -1184,11 +1182,13 @@ int FS::cp(std::string sourcepath, std::string destpath)
     changeWorkingDir(origin);
     std::string dstName = parseTilFile(destpath);
     dstEntryIndex = findIndexWorkingDir(dstName);
-    destType = workingDir[dstEntryIndex]->type;
-    uint16_t destBlk = findBlockWorkingDir(dstName);
+
+    if ( dstEntryIndex != -1 ) { destType = workingDir[dstEntryIndex]->type; }
+
     // if destination exists and is a directory
-    if (dstName.size() == 0)
+    if (dstEntryIndex != -1 && destType == TYPE_DIR)
     {
+        changeDirectory(dstName);
         // copy to a directory
         // create new file and save its first block. for file to dir copy
         pwd();
@@ -1201,13 +1201,10 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // copy over the dir entry, for file to file copy
         newEntry->first_blk = first_blk;
 
-        std::cout << "current block block is: " << origin << std::endl;
-        std::cout << "destination is block: " << destBlk << std::endl;
-
         workingDir.push_back(newEntry);
     }
     // otherwise we just copy file in currentDir
-    else
+    else if (dstEntryIndex == -1)
     {
         // just copying file in current dir
         // create new file and save its first block. for file to file copy
@@ -1222,6 +1219,12 @@ int FS::cp(std::string sourcepath, std::string destpath)
         std::cout << "destination is currentDir" << std::endl;
 
         workingDir.push_back(newEntry);
+    }
+    else 
+    {
+        changeWorkingDir(origin);
+        std::cout << "Error: Destinationfile already exists\n";
+        return 1;
     }
 
     // save to disk
@@ -1249,33 +1252,36 @@ int FS::mv(std::string sourcepath, std::string destpath)
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     changeWorkingDir(origin);
     std::string dstName = parseTilFile(destpath);
-    // if dest file not found, dont set destType
+    int dstIndex = findIndexWorkingDir(dstName);
 
-    if (dstName.size() == 0)
+    if (dstIndex != -1 && workingDir[dstIndex]->type == TYPE_DIR)
     {
-        // copy over the dir entry, for file to file copy
-        std::cout << "Moving file..." << std::endl;
+        changeDirectory(dstName);
         workingDir.push_back(temp);
         temp = nullptr;
     }
-    else
+    else if (dstIndex == -1)
     {
         std::cout << "Renaming file..." << std::endl;
-        int workingDirIndex = findIndexWorkingDir(sourcepath);
-        if (workingDirIndex != -1)
+        // reset filename to empty
+        for (int i = 0; i < 56; i++)
         {
-            // reset filename to empty
-            for (int i = 0; i < 56; i++)
-            {
-                temp->file_name[i] = 0;
-            }
-            // rename file
-            for (int i = 0; i < destpath.size() && i < 56; i++)
-            {
-                temp->file_name[i] = dstName[i];
-            }
+            temp->file_name[i] = 0;
         }
+        // rename file
+        for (int i = 0; i < destpath.size() && i < 56; i++)
+        {
+            temp->file_name[i] = dstName[i];
+        }
+        std::cout << temp->file_name << "\n";
+
         workingDir.push_back(temp);
+    }
+    else
+    {
+        changeWorkingDir(origin);
+        std::cout << "Error: Destinationfile already exists\n";
+        return 1;
     }
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
