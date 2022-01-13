@@ -102,7 +102,7 @@ private:
 
     // search tree for directory with first_blk that matches
     // and CDs to it and sets it as current node
-    int resetWorkingDir(uint16_t first_blk);
+    int resetWorkingDir(uint16_t blk);
 
     // parses a filepath and calls changeDirectory()
     // to change current workingDir to last directory in path
