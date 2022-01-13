@@ -1196,7 +1196,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // copy to a directory
         // create new file and save its first block. for file to dir copy
         pwd();
-
+        if (fileExist(srcName)) {std::cout << "Error: File with that name already exist\n"; return -1; }
         first_blk = writeBlocksFromString(contents);
         for (int i = 0; i < 56; i++)
         {
@@ -1261,6 +1261,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     if (dstIndex != -1 && workingDir[dstIndex]->type == TYPE_DIR)
     {
         changeDirectory(dstName);
+        if (fileExist(srcName)) {std::cout << "Error: File with that name already exist\n"; return -1; }
         workingDir.push_back(temp);
         temp = nullptr;
     }
@@ -1503,30 +1504,32 @@ int FS::chmod(std::string accessrights, std::string filepath)
     int entryIndex = findIndexWorkingDir(srcName);
     // set access_rights
     workingDir[entryIndex]->access_rights = std::stoi(accessrights);
+    if (workingDir[entryIndex]->type == TYPE_FILE)
+    {
+        return 0; //No need to proceed to next region
+    }
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     /* Make sure DOTDOT directory is mirrored
      * and the other way around so no discrepency exists
      * between the DOTDOT dir and the "real" dir it references.*/
-    if (workingDir[entryIndex]->type == TYPE_DIR)
+    if (workingDir[entryIndex]->file_name == DOTDOT &&
+            workingDir[entryIndex]->type == TYPE_DIR)
     {
-        if (workingDir[entryIndex]->file_name == DOTDOT)
-        {
-            // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
-            uint16_t dir_blk = workingDir[entryIndex]->first_blk;
-            changeWorkingDir(currentNode->parent->parent->entry->first_blk);
-            int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
-            workingDir[dotDotIndex]->access_rights = std::stoi(accessrights);
-            writeWorkingDirToBlock(currentNode->entry->first_blk);
-        }
-        // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
-        // dir so that it has the same access_rights
-        else
-        {
-            changeWorkingDir(workingDir[entryIndex]->first_blk);
-            int dotDotIndex = findIndexWorkingDir(DOTDOT);
-            workingDir[dotDotIndex]->access_rights = std::stoi(accessrights);
-            writeWorkingDirToBlock(currentNode->entry->first_blk);
-        }
+        // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
+        uint16_t dir_blk = workingDir[entryIndex]->first_blk;
+        changeWorkingDir(currentNode->parent->parent->entry->first_blk);
+        int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
+        workingDir[dotDotIndex]->access_rights = stoi(accessrights);
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
+    }
+    // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
+    // dir so that it has the same access_rights
+    else if (workingDir[entryIndex]->type == TYPE_DIR)
+    {
+        changeWorkingDir(workingDir[entryIndex]->first_blk);
+        int dotDotIndex = findIndexWorkingDir(DOTDOT);
+        workingDir[dotDotIndex]->access_rights = stoi(accessrights);
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
     }
 
     changeWorkingDir(origin);
