@@ -102,10 +102,6 @@ private:
     // help function for searching tree.
     treeNode* BFS(uint16_t blk);
 
-    // search tree for directory with first_blk that matches
-    // and CDs to it and sets it as current node
-    int resetWorkingDir(uint16_t blk);
-
     // parses a filepath and calls changeDirectory()
     // to change current workingDir to last directory in path
     // if it exists. if doesnt exist it returns -1
