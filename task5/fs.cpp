@@ -1157,6 +1157,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     if (!readPermitted(workingDir[srcEntryIndex]->access_rights))
     {
         std::cout << "Not allowed to copy this file\n";
+        changeWorkingDir(origin);
         return 1;
     }
     // Tries to find file in rootblock
@@ -1196,7 +1197,13 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // copy to a directory
         // create new file and save its first block. for file to dir copy
         pwd();
-        if (fileExist(srcName)) {std::cout << "Error: File with that name already exist\n"; return -1; }
+        std::cout << srcName << "\n";
+        if (fileExist(srcName))
+        {
+            std::cout << "Error: File with that name already exist\n";
+            changeWorkingDir(origin);
+            return 1;
+        }
         first_blk = writeBlocksFromString(contents);
         for (int i = 0; i < 56; i++)
         {
@@ -1213,6 +1220,12 @@ int FS::cp(std::string sourcepath, std::string destpath)
         // just copying file in current dir
         // create new file and save its first block. for file to file copy
         first_blk = writeBlocksFromString(contents);
+        if (fileExist(dstName))
+        {
+            std::cout << "Error: File with that name already exist\n";
+            changeWorkingDir(origin);
+            return -1;
+        }
         for (int i = 0; i < 56; i++)
         {
             newEntry->file_name[i] = dstName[i];
@@ -1261,13 +1274,29 @@ int FS::mv(std::string sourcepath, std::string destpath)
     if (dstIndex != -1 && workingDir[dstIndex]->type == TYPE_DIR)
     {
         changeDirectory(dstName);
-        if (fileExist(srcName)) {std::cout << "Error: File with that name already exist\n"; return -1; }
+
+        if (fileExist(srcName))
+        {
+            std::cout << "Error: File with that name already exist\n";
+            changeWorkingDir(origin);
+            workingDir.push_back(temp);
+            writeWorkingDirToBlock(currentNode->entry->first_blk);
+            return 1;
+        }
         workingDir.push_back(temp);
         temp = nullptr;
     }
     else if (dstIndex == -1)
     {
         std::cout << "Renaming file..." << std::endl;
+        if (fileExist(dstName))
+        {
+            std::cout << "Error: File with that name already exist\n";
+            changeWorkingDir(origin);
+            workingDir.push_back(temp);
+            writeWorkingDirToBlock(currentNode->entry->first_blk);
+            return 1;
+        }
         // reset filename to empty
         for (int i = 0; i < 56; i++)
         {
@@ -1286,6 +1315,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     {
         changeWorkingDir(origin);
         workingDir.push_back(temp);
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
         std::cout << "Error: Destinationfile already exists\n";
         return 1;
     }
@@ -1506,14 +1536,14 @@ int FS::chmod(std::string accessrights, std::string filepath)
     workingDir[entryIndex]->access_rights = std::stoi(accessrights);
     if (workingDir[entryIndex]->type == TYPE_FILE)
     {
-        return 0; //No need to proceed to next region
+        return 0; // No need to proceed to next region
     }
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     /* Make sure DOTDOT directory is mirrored
      * and the other way around so no discrepency exists
      * between the DOTDOT dir and the "real" dir it references.*/
     if (workingDir[entryIndex]->file_name == DOTDOT &&
-            workingDir[entryIndex]->type == TYPE_DIR)
+        workingDir[entryIndex]->type == TYPE_DIR)
     {
         // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
         uint16_t dir_blk = workingDir[entryIndex]->first_blk;
