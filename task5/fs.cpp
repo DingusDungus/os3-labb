@@ -281,7 +281,8 @@ std::vector<std::string> FS::splitPath(std::string path)
 // if it exists. if doesnt exist it returns -1
 int FS::parsePath(std::string path)
 {
-    if(path == "/"){
+    if (path == "/")
+    {
         changeWorkingDir(ROOT_BLOCK);
         return 0;
     }
@@ -1183,7 +1184,10 @@ int FS::cp(std::string sourcepath, std::string destpath)
     std::string dstName = parseTilFile(destpath);
     dstEntryIndex = findIndexWorkingDir(dstName);
 
-    if ( dstEntryIndex != -1 ) { destType = workingDir[dstEntryIndex]->type; }
+    if (dstEntryIndex != -1)
+    {
+        destType = workingDir[dstEntryIndex]->type;
+    }
 
     // if destination exists and is a directory
     if (dstEntryIndex != -1 && destType == TYPE_DIR)
@@ -1220,7 +1224,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
         workingDir.push_back(newEntry);
     }
-    else 
+    else
     {
         changeWorkingDir(origin);
         std::cout << "Error: Destinationfile already exists\n";
@@ -1280,6 +1284,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     else
     {
         changeWorkingDir(origin);
+        workingDir.push_back(temp);
         std::cout << "Error: Destinationfile already exists\n";
         return 1;
     }
@@ -1398,6 +1403,11 @@ int FS::mkdir(std::string dirpath)
 {
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(dirpath);
+    if (fileExist(srcName))
+    {
+        std::cout << "Object with that name already exists!\n";
+        return 1;
+    }
     std::cout << "FS::mkdir(" << dirpath << ")\n";
     int freeIndex = getFreeIndex();
     uint16_t parentBlock = currentNode->entry->first_blk;
@@ -1488,34 +1498,35 @@ int FS::chmod(std::string accessrights, std::string filepath)
 {
     std::cout << "FS::chmod(" << accessrights << "," << filepath << ")\n";
     uint16_t origin = currentNode->entry->first_blk;
-    uint8_t rights = parseRights(accessrights);
 
     std::string srcName = parseTilFile(filepath);
     int entryIndex = findIndexWorkingDir(srcName);
-    std::cout << rights << std::endl;
     // set access_rights
-    workingDir[entryIndex]->access_rights = rights;
+    workingDir[entryIndex]->access_rights = std::stoi(accessrights);
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     /* Make sure DOTDOT directory is mirrored
      * and the other way around so no discrepency exists
      * between the DOTDOT dir and the "real" dir it references.*/
-    if (workingDir[entryIndex]->file_name == DOTDOT)
+    if (workingDir[entryIndex]->type == TYPE_DIR)
     {
-        // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
-        uint16_t dir_blk = workingDir[entryIndex]->first_blk;
-        changeWorkingDir(currentNode->parent->parent->entry->first_blk);
-        int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
-        workingDir[dotDotIndex]->access_rights = rights;
-        writeWorkingDirToBlock(currentNode->entry->first_blk);
-    }
-    // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
-    // dir so that it has the same access_rights
-    else
-    {
-        changeWorkingDir(workingDir[entryIndex]->first_blk);
-        int dotDotIndex = findIndexWorkingDir(DOTDOT);
-        workingDir[dotDotIndex]->access_rights = rights;
-        writeWorkingDirToBlock(currentNode->entry->first_blk);
+        if (workingDir[entryIndex]->file_name == DOTDOT)
+        {
+            // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
+            uint16_t dir_blk = workingDir[entryIndex]->first_blk;
+            changeWorkingDir(currentNode->parent->parent->entry->first_blk);
+            int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
+            workingDir[dotDotIndex]->access_rights = std::stoi(accessrights);
+            writeWorkingDirToBlock(currentNode->entry->first_blk);
+        }
+        // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
+        // dir so that it has the same access_rights
+        else
+        {
+            changeWorkingDir(workingDir[entryIndex]->first_blk);
+            int dotDotIndex = findIndexWorkingDir(DOTDOT);
+            workingDir[dotDotIndex]->access_rights = std::stoi(accessrights);
+            writeWorkingDirToBlock(currentNode->entry->first_blk);
+        }
     }
 
     changeWorkingDir(origin);
