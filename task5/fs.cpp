@@ -1523,6 +1523,33 @@ int FS::pwd()
     return 0;
 }
 
+// recursively goes through a workingDir changing
+// all its directories dotdot entries access_rights
+int FS::setRecursiveRights(uint16_t workDir_blk, uint8_t rights)
+{
+    changeWorkingDir(workDir_blk);
+    std::cout << currentNode->entry->file_name << std::endl;
+
+    // loop through all directories (except DOTDOT)
+    // in the directory that had its chmod changed
+    // and set all its subdirs DOTDOT to the same rights.
+    for (int i = 0; i < workingDir.size(); i++) {
+        if(workingDir[i]->type == TYPE_DIR && workingDir[i]->file_name != DOTDOT){
+            uint16_t nextBlk = workingDir[i]->first_blk;
+            changeWorkingDir(nextBlk);
+            std::cout << currentNode->entry->file_name << std::endl;
+            int dotDotIndex = findIndexWorkingDir(DOTDOT);
+            workingDir[dotDotIndex]->access_rights = rights;
+            writeWorkingDirToBlock(nextBlk);
+            // change back to the dir we are working from.
+            changeWorkingDir(workDir_blk);
+            std::cout << currentNode->entry->file_name << std::endl;
+        }
+    }
+
+    return 0;
+}
+
 // chmod <accessrights> <filepath> changes the access rights for the
 // file <filepath> to <accessrights>.
 int FS::chmod(std::string accessrights, std::string filepath)
@@ -1537,7 +1564,8 @@ int FS::chmod(std::string accessrights, std::string filepath)
         root->entry->access_rights = rights;
         int dotDotIndex = findIndexWorkingDir(DOTDOT);
         workingDir[dotDotIndex]->access_rights = rights;
-        writeWorkingDirToBlock(currentNode->entry->first_blk);
+        writeWorkingDirToBlock(ROOT_BLOCK);
+        setRecursiveRights(ROOT_BLOCK, rights);
 
         changeWorkingDir(origin);
         return 0;
@@ -1559,21 +1587,21 @@ int FS::chmod(std::string accessrights, std::string filepath)
     if (workingDir[entryIndex]->file_name == DOTDOT &&
         workingDir[entryIndex]->type == TYPE_DIR)
     {
-        // Find the dir with the same block as the dotDotEntry and change it aswell.
+        // Find the dirs inside the dir with the
+        // same block as the dotDotEntry and change
+        // all their DOTDOT dirs aswell.
         uint16_t dir_blk = workingDir[entryIndex]->first_blk;
         changeWorkingDir(currentNode->parent->parent->entry->first_blk);
-        int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
-        workingDir[dotDotIndex]->access_rights = rights;
+        int realDirIndex = findIndexWorkingDirFromBlock(dir_blk);
+        workingDir[realDirIndex]->access_rights = rights;
         writeWorkingDirToBlock(currentNode->entry->first_blk);
+        setRecursiveRights(workingDir[realDirIndex]->first_blk, rights);
     }
-    // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
+    // If its not a special DOTDOT dir, we want to change the dirs subdirs DOTDOT
     // dir so that it has the same access_rights
     else if (workingDir[entryIndex]->type == TYPE_DIR)
     {
-        changeWorkingDir(workingDir[entryIndex]->first_blk);
-        int dotDotIndex = findIndexWorkingDir(DOTDOT);
-        workingDir[dotDotIndex]->access_rights = rights;
-        writeWorkingDirToBlock(currentNode->entry->first_blk);
+        setRecursiveRights(workingDir[entryIndex]->first_blk, rights);
     }
 
     changeWorkingDir(origin);

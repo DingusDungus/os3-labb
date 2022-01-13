@@ -96,6 +96,10 @@ private:
     dir_entry* copyDirEntry(dir_entry* dir, std::string name, uint16_t first_blk);
     dir_entry* makeDotDotDir(uint16_t blk);
 
+    // recursively goes through a workingDir changing
+    // all its directories dotdot entries access_rights
+    int setRecursiveRights(uint16_t workDir_blk, uint8_t rights);
+
     // parses a filepath and calls changeDirectory()
     // to change current workingDir to last directory in path
     // if it exists. if doesnt exist it returns -1
