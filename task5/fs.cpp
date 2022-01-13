@@ -281,39 +281,23 @@ std::vector<std::string> FS::splitPath(std::string path)
 // if it exists. if doesnt exist it returns -1
 int FS::parsePath(std::string path)
 {
+    if (path[path.length() - 1] == '/')
+    {
+        std::cout << "Error: No destination directory selected\n";
+        return -1;
+    }
     int index = 0;
     std::string dirName;
     int origin = currentNode->entry->first_blk;
-    // if first char is '/' then we know we start in root.
-    if (path[0] == '/')
+    dirName = parseTilFile(path);
+    int entryIndex = findIndexWorkingDir(dirName);
+
+    if (changeDirectory(dirName) == -1)
     {
-        changeWorkingDir(ROOT_BLOCK);
-        index++;
-    }
-    if (path[path.size() - 1] != '/')
-    {
-        std::cout << "Error improper syntax: Path did not end with '/'\n";
         changeWorkingDir(origin);
         return -1;
     }
-    // loop through the directories in the path and cd into them
-    for (; index < path.size(); index++)
-    {
-        if (path[index] != '/' && index != (path.size()))
-        {
-            dirName += path[index];
-        }
-        else
-        {
-            if (changeDirectory(dirName) == -1)
-            {
-                std::cout << dirName << " doesn't exist!!!\n";
-                changeWorkingDir(origin);
-                return -1;
-            }
-            dirName.clear();
-        }
-    }
+
     return 0;
 }
 
@@ -356,12 +340,13 @@ int FS::changeDirectory(std::string dirName)
     int index = findIndexWorkingDir(dirName);
     if (index == -1)
     {
+        std::cout << "Error: " << dirName << " does not exist\n";
         return -1;
     }
 
     // only cd if we have access and its a directory.
     if (workingDir[index]->type == TYPE_DIR &&
-            executePermitted(workingDir[index]->access_rights))
+        executePermitted(workingDir[index]->access_rights))
     {
         std::cout << currentNode->entry->file_name << std::endl;
         changeWorkingDir(workingDir[index]->first_blk);
@@ -369,7 +354,7 @@ int FS::changeDirectory(std::string dirName)
     }
     // error if no execute access to dir.
     else if (workingDir[index]->type == TYPE_DIR &&
-            !executePermitted(workingDir[index]->access_rights))
+             !executePermitted(workingDir[index]->access_rights))
     {
         std::cout << "Error: Permission denied, no access rights" << std::endl;
         return -1;
@@ -1486,7 +1471,8 @@ int FS::chmod(std::string accessrights, std::string filepath)
     /* Make sure DOTDOT directory is mirrored
      * and the other way around so no discrepency exists
      * between the DOTDOT dir and the "real" dir it references.*/
-    if(workingDir[entryIndex]->file_name == DOTDOT){
+    if (workingDir[entryIndex]->file_name == DOTDOT)
+    {
         // TODO: needs fixing
         changeWorkingDir(currentNode->parent->parent->entry->first_blk);
         int dotDotIndex = findIndexWorkingDir(DOTDOT);
@@ -1495,7 +1481,8 @@ int FS::chmod(std::string accessrights, std::string filepath)
     }
     // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
     // so that it contains to have the same access_rights
-    else {
+    else
+    {
         changeWorkingDir(workingDir[entryIndex]->first_blk);
         int dotDotIndex = findIndexWorkingDir(DOTDOT);
         workingDir[dotDotIndex]->access_rights = rights;
