@@ -427,6 +427,11 @@ void FS::initWorkingDir(uint16_t blk)
     }
 }
 
+int FS::DFSresetWorkingDir(uint16_t first_blk)
+{
+    return 0;
+}
+
 void FS::changeWorkingDir(uint16_t blk)
 {
     updateFat();

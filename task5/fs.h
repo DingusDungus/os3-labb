@@ -100,6 +100,10 @@ private:
     // all its directories dotdot entries access_rights
     int setRecursiveRights(uint16_t workDir_blk, uint8_t rights);
 
+    // search tree for directory with first_blk that matches
+    // and CDs to it and sets it as current node
+    int DFSresetWorkingDir(uint16_t first_blk);
+
     // parses a filepath and calls changeDirectory()
     // to change current workingDir to last directory in path
     // if it exists. if doesnt exist it returns -1
