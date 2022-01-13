@@ -1220,7 +1220,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
 
         workingDir.push_back(newEntry);
     }
-    else 
+    else
     {
         changeWorkingDir(origin);
         std::cout << "Error: Destinationfile already exists\n";
@@ -1499,7 +1499,8 @@ int FS::chmod(std::string accessrights, std::string filepath)
     /* Make sure DOTDOT directory is mirrored
      * and the other way around so no discrepency exists
      * between the DOTDOT dir and the "real" dir it references.*/
-    if (workingDir[entryIndex]->file_name == DOTDOT)
+    if (workingDir[entryIndex]->file_name == DOTDOT &&
+            workingDir[entryIndex]->type == TYPE_DIR)
     {
         // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
         uint16_t dir_blk = workingDir[entryIndex]->first_blk;
@@ -1510,7 +1511,7 @@ int FS::chmod(std::string accessrights, std::string filepath)
     }
     // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
     // dir so that it has the same access_rights
-    else
+    else if (workingDir[entryIndex]->type == TYPE_DIR)
     {
         changeWorkingDir(workingDir[entryIndex]->first_blk);
         int dotDotIndex = findIndexWorkingDir(DOTDOT);
