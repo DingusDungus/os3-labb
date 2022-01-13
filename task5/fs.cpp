@@ -612,11 +612,29 @@ void FS::writeWorkingDirToBlock(uint16_t blk)
     updateFat();
 }
 
+int FS::findIndexWorkingDirFromBlock(uint16_t blk)
+{
+    bool found = false;
+    // Tries to find entry in workingDir
+    int index = -1;
+    uint16_t first_blk = 0;
+    for (int i = 0; i < workingDir.size(); i++)
+    {
+        if (workingDir[i]->first_blk == blk)
+        {
+            found = true;
+            index = i;
+            break;
+        }
+    }
+    // return index
+    return index;
+}
 // returns index in workingDir array, -1 if not found
 int FS::findIndexWorkingDir(std::string filename)
 {
     bool found = false;
-    // Tries to find file in workingDir
+    // Tries to find entry in workingDir
     int index = -1;
     uint16_t first_blk = 0;
     for (int i = 0; i < workingDir.size(); i++)
@@ -1477,14 +1495,15 @@ int FS::chmod(std::string accessrights, std::string filepath)
      * between the DOTDOT dir and the "real" dir it references.*/
     if (workingDir[entryIndex]->file_name == DOTDOT)
     {
-        // TODO: needs fixing
+        // TODO: find the dir with the same block as the dotDotEntry and change it aswell.
+        uint16_t dir_blk = workingDir[entryIndex]->first_blk;
         changeWorkingDir(currentNode->parent->parent->entry->first_blk);
-        int dotDotIndex = findIndexWorkingDir(DOTDOT);
+        int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
         workingDir[dotDotIndex]->access_rights = rights;
         writeWorkingDirToBlock(currentNode->entry->first_blk);
     }
     // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
-    // so that it contains to have the same access_rights
+    // dir so that it has the same access_rights
     else
     {
         changeWorkingDir(workingDir[entryIndex]->first_blk);

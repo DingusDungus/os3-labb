@@ -121,6 +121,8 @@ private:
     int findBlockWorkingDir(std::string filename);
     // returns index in workingDir array, -1 if not found
     int findIndexWorkingDir(std::string filename);
+    // return index in workingDir array from given first_blk.
+    int findIndexWorkingDirFromBlock(uint16_t blk);
     // check if file exists
     bool fileExist(std::string filename);
     // Finds end of file both block index and end in said block
