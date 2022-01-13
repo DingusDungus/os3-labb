@@ -427,7 +427,7 @@ void FS::initWorkingDir(uint16_t blk)
     }
 }
 
-int FS::DFSresetWorkingDir(uint16_t first_blk)
+int FS::resetWorkingDir(uint16_t first_blk)
 {
     return 0;
 }
