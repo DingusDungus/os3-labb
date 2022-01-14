@@ -1,7 +1,6 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
-#include <stack>
 #include "fs.h"
 
 FS::FS()
@@ -428,52 +427,19 @@ void FS::initWorkingDir(uint16_t blk)
     }
 }
 
-treeNode* FS::BFS(uint16_t blk)
-{
-    std::cout << "BFS search started..." << std::endl;
-    if (root == nullptr) {
-        return nullptr;
-    }
-    std::stack<treeNode*> s;
-    s.push(root);
-
-    while (!s.empty()) {
-        treeNode* current = s.top();
-        std::cout << current->entry->file_name << std::endl;
-        if (current->entry->first_blk == blk) {
-            std::cout << "BFS search ended..." << std::endl;
-            return current;
-        }
-        s.pop();
-
-        for (int i = 0; i < current->children.size(); i++) {
-            if(current->children[i]->entry->type == TYPE_DIR &&
-            current->children[i]->entry->file_name != DOTDOT)
-            {
-                s.push(current->children[i]);
-            }
-        }
-    }
-    std::cout << "BFS search ended..." << std::endl;
-    return nullptr;
-}
-
 void FS::changeWorkingDir(uint16_t blk)
 {
     updateFat();
 
     uint8_t block[4096];
 
-    bool found = false;
     if (blk == ROOT_BLOCK)
     {
         currentNode = root;
-        found = true;
     }
     else if (blk == currentNode->parent->entry->first_blk)
     {
         currentNode = currentNode->parent;
-        found = true;
     }
     else
     {
@@ -482,18 +448,9 @@ void FS::changeWorkingDir(uint16_t blk)
             if (currentNode->children[i]->entry->first_blk == blk)
             {
                 currentNode = currentNode->children[i];
-                found = true;
                 break;
             }
         }
-    }
-    // if not already found we search the tree for the directory.
-    if (!found){
-        treeNode* node = BFS(blk);
-        if(node != nullptr){
-            currentNode = node;
-        }
-
     }
 
     deleteWorkingDir();
@@ -1186,6 +1143,7 @@ int FS::ls()
 // <sourcepath> to a new file <destpath>
 int FS::cp(std::string sourcepath, std::string destpath)
 {
+    treeNode *originNode = currentNode;
     std::cout << "FS::cp(" << sourcepath << "," << destpath << ")\n";
     // Tries to find file in rootblock
     uint16_t origin = currentNode->entry->first_blk;
@@ -1201,6 +1159,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     {
         std::cout << "Not allowed to copy this file\n";
         changeWorkingDir(origin);
+        currentNode = originNode;
         return 1;
     }
     // Tries to find file in rootblock
@@ -1245,6 +1204,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
         {
             std::cout << "Error: File with that name already exist\n";
             changeWorkingDir(origin);
+            currentNode = originNode;
             return 1;
         }
         first_blk = writeBlocksFromString(contents);
@@ -1267,6 +1227,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
         {
             std::cout << "Error: File with that name already exist\n";
             changeWorkingDir(origin);
+            currentNode = originNode;
             return -1;
         }
         for (int i = 0; i < 56; i++)
@@ -1283,6 +1244,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     else
     {
         changeWorkingDir(origin);
+        currentNode = originNode;
         std::cout << "Error: Destinationfile already exists\n";
         return 1;
     }
@@ -1290,6 +1252,7 @@ int FS::cp(std::string sourcepath, std::string destpath)
     // save to disk
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     changeWorkingDir(origin);
+    currentNode = originNode;
 
     return 0;
 }
@@ -1298,6 +1261,8 @@ int FS::cp(std::string sourcepath, std::string destpath)
 // or moves the file <sourcepath> to the directory <destpath> (if dest is a directory)
 int FS::mv(std::string sourcepath, std::string destpath)
 {
+    treeNode *originNode = currentNode;
+
     std::cout << "FS::mv(" << sourcepath << "," << destpath << ")\n";
     int origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(sourcepath);
@@ -1322,6 +1287,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
         {
             std::cout << "Error: File with that name already exist\n";
             changeWorkingDir(origin);
+            currentNode = originNode;
             workingDir.push_back(temp);
             writeWorkingDirToBlock(currentNode->entry->first_blk);
             return 1;
@@ -1336,6 +1302,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
         {
             std::cout << "Error: File with that name already exist\n";
             changeWorkingDir(origin);
+            currentNode = originNode;
             workingDir.push_back(temp);
             writeWorkingDirToBlock(currentNode->entry->first_blk);
             return 1;
@@ -1357,6 +1324,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
     else
     {
         changeWorkingDir(origin);
+        currentNode = originNode;
         workingDir.push_back(temp);
         writeWorkingDirToBlock(currentNode->entry->first_blk);
         std::cout << "Error: Destinationfile already exists\n";
@@ -1365,6 +1333,7 @@ int FS::mv(std::string sourcepath, std::string destpath)
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     changeWorkingDir(origin);
+    currentNode = originNode;
     return 0;
 }
 
@@ -1417,6 +1386,7 @@ int FS::rm(std::string filepath)
 // the end of file <filepath2>. The file <filepath1> is unchanged.
 int FS::append(std::string filepath1, std::string filepath2)
 {
+    treeNode *originNode = currentNode;
     std::cout << "FS::append(" << filepath1 << "," << filepath2 << ")\n";
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(filepath1);
@@ -1467,6 +1437,7 @@ int FS::append(std::string filepath1, std::string filepath2)
 
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     changeWorkingDir(origin);
+    currentNode = originNode;
 
     return 0;
 }
@@ -1475,6 +1446,7 @@ int FS::append(std::string filepath1, std::string filepath2)
 // in the current directory
 int FS::mkdir(std::string dirpath)
 {
+    treeNode *originNode = currentNode;
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(dirpath);
     if (fileExist(srcName))
@@ -1523,6 +1495,7 @@ int FS::mkdir(std::string dirpath)
     writeWorkingDirToBlock(freeIndex);
     // change back to currentDir
     changeWorkingDir(origin);
+    currentNode = originNode;
 
     return 0;
 }
@@ -1566,37 +1539,11 @@ int FS::pwd()
     return 0;
 }
 
-// recursively goes through a workingDir changing
-// all its directories dotdot entries access_rights
-int FS::setRecursiveRights(uint16_t workDir_blk, uint8_t rights)
-{
-    changeWorkingDir(workDir_blk);
-    std::cout << currentNode->entry->file_name << std::endl;
-
-    // loop through all directories (except DOTDOT)
-    // in the directory that had its chmod changed
-    // and set all its subdirs DOTDOT to the same rights.
-    for (int i = 0; i < workingDir.size(); i++) {
-        if(workingDir[i]->type == TYPE_DIR && workingDir[i]->file_name != DOTDOT){
-            uint16_t nextBlk = workingDir[i]->first_blk;
-            changeWorkingDir(nextBlk);
-            std::cout << currentNode->entry->file_name << std::endl;
-            int dotDotIndex = findIndexWorkingDir(DOTDOT);
-            workingDir[dotDotIndex]->access_rights = rights;
-            writeWorkingDirToBlock(nextBlk);
-            // change back to the dir we are working from.
-            changeWorkingDir(workDir_blk);
-            std::cout << currentNode->entry->file_name << std::endl;
-        }
-    }
-
-    return 0;
-}
-
 // chmod <accessrights> <filepath> changes the access rights for the
 // file <filepath> to <accessrights>.
 int FS::chmod(std::string accessrights, std::string filepath)
 {
+    treeNode *originNode = currentNode;
     std::cout << "FS::chmod(" << accessrights << "," << filepath << ")\n";
     uint16_t origin = currentNode->entry->first_blk;
     uint8_t rights = std::stoi(accessrights);
@@ -1607,10 +1554,10 @@ int FS::chmod(std::string accessrights, std::string filepath)
         root->entry->access_rights = rights;
         int dotDotIndex = findIndexWorkingDir(DOTDOT);
         workingDir[dotDotIndex]->access_rights = rights;
-        writeWorkingDirToBlock(ROOT_BLOCK);
-        setRecursiveRights(ROOT_BLOCK, rights);
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
 
         changeWorkingDir(origin);
+        currentNode = originNode;
         return 0;
     }
 
@@ -1630,23 +1577,24 @@ int FS::chmod(std::string accessrights, std::string filepath)
     if (workingDir[entryIndex]->file_name == DOTDOT &&
         workingDir[entryIndex]->type == TYPE_DIR)
     {
-        // Find the dirs inside the dir with the
-        // same block as the dotDotEntry and change
-        // all their DOTDOT dirs aswell.
+        // Find the dir with the same block as the dotDotEntry and change it aswell.
         uint16_t dir_blk = workingDir[entryIndex]->first_blk;
         changeWorkingDir(currentNode->parent->parent->entry->first_blk);
-        int realDirIndex = findIndexWorkingDirFromBlock(dir_blk);
-        workingDir[realDirIndex]->access_rights = rights;
+        int dotDotIndex = findIndexWorkingDirFromBlock(dir_blk);
+        workingDir[dotDotIndex]->access_rights = rights;
         writeWorkingDirToBlock(currentNode->entry->first_blk);
-        setRecursiveRights(workingDir[realDirIndex]->first_blk, rights);
     }
-    // If its not a special DOTDOT dir, we want to change the dirs subdirs DOTDOT
+    // If its not a special DOTDOT dir, we want to change the dirs DOTDOT
     // dir so that it has the same access_rights
     else if (workingDir[entryIndex]->type == TYPE_DIR)
     {
-        setRecursiveRights(workingDir[entryIndex]->first_blk, rights);
+        changeWorkingDir(workingDir[entryIndex]->first_blk);
+        int dotDotIndex = findIndexWorkingDir(DOTDOT);
+        workingDir[dotDotIndex]->access_rights = rights;
+        writeWorkingDirToBlock(currentNode->entry->first_blk);
     }
 
     changeWorkingDir(origin);
+    currentNode = originNode;
     return 0;
 }
