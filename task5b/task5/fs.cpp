@@ -859,33 +859,11 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     std::cout << std::endl;
-    for (int i = 0; i < workingDir.size(); i++)
+    for (int i = 0;i < 66;i++)
     {
-        std::cout << workingDir[i]->file_name << " " << workingDir[i]->first_blk << " " << std::to_string(workingDir[i]->type);
-        std::cout << std::endl;
+        create(std::to_string(i));
     }
-    std::cout << "current dir " << currentNode->entry->file_name << " block: " << currentNode->entry->first_blk << std::endl;
-    for (int i = 0; i < currentNode->children.size(); i++)
-    {
-        std::cout << currentNode->children[i]->entry->file_name << std::endl;
-    }
-    std::cout << "Children of: " << currentNode->entry->file_name << std::endl;
-    for (int i = 0; i < 10; i++)
-    {
-        std::cout << fat[i] << " ";
-    }
-    std::cout << " FAT\n";
-
-    std::cout << "------------------------------------------" << std::endl;
-    std::cout << "Split path string test:" << std::endl;
-    splitPath("/dir1/dir2/dir3/dir4/");
-    std::cout << "------------------------------------------" << std::endl;
-    splitPath("dir1/dir2/dir3/dir4/");
-    std::cout << "------------------------------------------" << std::endl;
-    splitPath("/dir1/dir2/dir3/dir4");
-    std::cout << "------------------------------------------" << std::endl;
-    splitPath("dir1/dir2/dir3/dir4");
-    std::cout << "------------------------------------------" << std::endl;
+    
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -1050,9 +1028,20 @@ int FS::create(std::string filepath)
 {
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(filepath);
+    if (srcName.length() > 56)
+    {
+        std::cout << "File name too long\n";
+        return 1;
+    }
     // throw error if file already exists
     if (fileExist(srcName))
     {
+        std::cout << "File already exists!\n";
+        return 1;
+    }
+    if (workingDir.size() == 64)
+    {
+        std::cout << "Directory full!\n";
         return 1;
     }
 
@@ -1222,6 +1211,11 @@ int FS::cp(std::string sourcepath, std::string destpath)
     }
     changeWorkingDir(origin);
     std::string dstName = parseTilFile(destpath);
+    if (dstName.length() > 56)
+    {
+        std::cout << "File name too long\n";
+        return 1;
+    }
     dstEntryIndex = findIndexWorkingDir(dstName);
 
     if (dstEntryIndex != -1)
@@ -1308,6 +1302,11 @@ int FS::mv(std::string sourcepath, std::string destpath)
     writeWorkingDirToBlock(currentNode->entry->first_blk);
     changeWorkingDir(origin);
     std::string dstName = parseTilFile(destpath);
+    if (dstName.length() > 56)
+    {
+        std::cout << "File name too long\n";
+        return 1;
+    }
     int dstIndex = findIndexWorkingDir(dstName);
 
     if (dstIndex != -1 && workingDir[dstIndex]->type == TYPE_DIR)
@@ -1473,6 +1472,11 @@ int FS::mkdir(std::string dirpath)
 {
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(dirpath);
+    if (srcName.length() > 56)
+    {
+        std::cout << "Dir name too long\n";
+        return 1;
+    }
     if (fileExist(srcName))
     {
         std::cout << "Object with that name already exists!\n";

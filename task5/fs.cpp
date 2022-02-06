@@ -797,42 +797,6 @@ bool FS::executePermitted(int rights)
     return false;
 }
 
-// formats the disk, i.e., creates an empty file system
-int FS::format()
-{
-    changeWorkingDir(0);
-    uint8_t block[4096];
-    // reset the block array
-    for (int i = 0; i < 4096; i++)
-    {
-        block[i] = 0;
-    }
-    // overwrite all blocks
-    for (int i = 0; i < BLOCK_SIZE / 2; i++)
-    {
-        disk.write(i, block);
-    }
-    fat[ROOT_BLOCK] = FAT_EOF;
-    fat[FAT_BLOCK] = FAT_EOF;
-    for (int i = 2; i < BLOCK_SIZE / 2; i++)
-    {
-        fat[i] = FAT_FREE;
-    }
-    updateFat();
-
-    deleteWorkingDir();
-    workingDir.clear();
-
-    readInFatRoot();
-    initTree();
-    changeWorkingDir(0);
-    // create DOTDOT entry for ROOT.
-    dir_entry *dotDotDir = makeDotDotDir(ROOT_BLOCK);
-    workingDir.push_back(dotDotDir);
-    writeWorkingDirToBlock(ROOT_BLOCK);
-
-    return 0;
-}
 
 // return first free block index
 int FS::getFreeIndex()
@@ -851,33 +815,11 @@ int FS::getFreeIndex()
 void FS::testDisk()
 {
     std::cout << std::endl;
-    for (int i = 0; i < workingDir.size(); i++)
+    for (int i = 0;i < 64;i++)
     {
-        std::cout << workingDir[i]->file_name << " " << workingDir[i]->first_blk << " " << std::to_string(workingDir[i]->type);
-        std::cout << std::endl;
+        create(std::to_string(i));
     }
-    std::cout << "current dir " << currentNode->entry->file_name << " block: " << currentNode->entry->first_blk << std::endl;
-    for (int i = 0; i < currentNode->children.size(); i++)
-    {
-        std::cout << currentNode->children[i]->entry->file_name << std::endl;
-    }
-    std::cout << "Children of: " << currentNode->entry->file_name << std::endl;
-    for (int i = 0; i < 10; i++)
-    {
-        std::cout << fat[i] << " ";
-    }
-    std::cout << " FAT\n";
-
-    std::cout << "------------------------------------------" << std::endl;
-    std::cout << "Split path string test:" << std::endl;
-    splitPath("/dir1/dir2/dir3/dir4/");
-    std::cout << "------------------------------------------" << std::endl;
-    splitPath("dir1/dir2/dir3/dir4/");
-    std::cout << "------------------------------------------" << std::endl;
-    splitPath("/dir1/dir2/dir3/dir4");
-    std::cout << "------------------------------------------" << std::endl;
-    splitPath("dir1/dir2/dir3/dir4");
-    std::cout << "------------------------------------------" << std::endl;
+    
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -1036,12 +978,55 @@ dir_entry *FS::copyDirEntry(dir_entry *dir, std::string name, uint16_t first_blk
 
     return newEntry;
 }
+
+// formats the disk, i.e., creates an empty file system
+int FS::format()
+{
+    changeWorkingDir(0);
+    uint8_t block[4096];
+    // reset the block array
+    for (int i = 0; i < 4096; i++)
+    {
+        block[i] = 0;
+    }
+    // overwrite all blocks
+    for (int i = 0; i < BLOCK_SIZE / 2; i++)
+    {
+        disk.write(i, block);
+    }
+    fat[ROOT_BLOCK] = FAT_EOF;
+    fat[FAT_BLOCK] = FAT_EOF;
+    for (int i = 2; i < BLOCK_SIZE / 2; i++)
+    {
+        fat[i] = FAT_FREE;
+    }
+    updateFat();
+
+    deleteWorkingDir();
+    workingDir.clear();
+
+    readInFatRoot();
+    initTree();
+    changeWorkingDir(0);
+    // create DOTDOT entry for ROOT.
+    dir_entry *dotDotDir = makeDotDotDir(ROOT_BLOCK);
+    workingDir.push_back(dotDotDir);
+    writeWorkingDirToBlock(ROOT_BLOCK);
+
+    return 0;
+}
+
 // create <filepath> creates a new file on the disk, the data content is
 // written on the following rows (ended with an empty row)
 int FS::create(std::string filepath)
 {
     uint16_t origin = currentNode->entry->first_blk;
     std::string srcName = parseTilFile(filepath);
+    if (srcName.length() > 56)
+    {
+        std::cout << "File name too long\n";
+        return 1;
+    }
     // throw error if file already exists
     if (fileExist(srcName))
     {
