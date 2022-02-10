@@ -1095,13 +1095,9 @@ int FS::cat(std::string filepath)
 
     uint8_t block[4096];
     int fatIndex = first_blk;
-    //std::string sBlock;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
-        std::cout << std::endl << "Cat_Fatindex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        //sBlock = (char *)block;
-        //std::cout << sBlock << std::endl;
         for (int i = 0; i < 4096 && block[i] != '\0'; i++)
         {
             std::cout << block[i];
@@ -1403,14 +1399,11 @@ int FS::append(std::string filepath1, std::string filepath2)
     // Reads every block from sourcefile into string
     while (fatIndex != FAT_EOF)
     {
-        std::cout << std::endl << "Append_Fatindex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        //sBlock = (char *)block;
         for (int i = 0; i < 4096 && block[i] != '\0'; i++)
         {
             contents += (char)block[i];
         }
-        //contents.append(sBlock);
         fatIndex = fat[fatIndex];
     }
     contents.push_back('\0');
