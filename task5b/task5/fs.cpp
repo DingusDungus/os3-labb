@@ -419,7 +419,7 @@ void FS::initWorkingDir(uint16_t blk)
     }
 }
 
-treeNode* FS::BFS(uint16_t blk)
+treeNode* FS::DFS(uint16_t blk)
 {
     if (root == nullptr) {
         return nullptr;
@@ -477,7 +477,7 @@ void FS::changeWorkingDir(uint16_t blk)
     }
     // if not already found we search the tree for the directory.
     if (!found){
-        treeNode* node = BFS(blk);
+        treeNode* node = DFS(blk);
         if(node != nullptr){
             currentNode = node;
         }

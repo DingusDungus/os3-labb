@@ -100,7 +100,7 @@ private:
     // all its directories dotdot entries access_rights
     int setRecursiveRights(uint16_t workDir_blk, uint8_t rights);
     // help function for searching tree.
-    treeNode* BFS(uint16_t blk);
+    treeNode* DFS(uint16_t blk);
 
     // parses a filepath and calls changeDirectory()
     // to change current workingDir to last directory in path
