@@ -2,10 +2,7 @@
 Väldigt mycket onödiga debug-utskrifter.
 
 #2
-Saknas kontroll för om en mapp är full.
-
-#3
-Programmet kraschar när man försöker lägga till för många filer.
+Saknas kontroll för om en mapp är full. Programmet kraschar när man försöker lägga till för många filer.
 
 #4
 Saknas kontroll för långa filnamn. Nu kapas bara slutet av vilket gör att man kan skapa flera filer med samma namn genom att göra dem tillräckligt långa.

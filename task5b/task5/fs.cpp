@@ -166,7 +166,7 @@ void FS::readInFatRoot()
     // read the FAT block into block array
     disk.read(1, block);
     // counter
-    int x = 0;
+    int x = 4;
     fat[0] = FAT_EOF;
     fat[1] = FAT_EOF;
     // loop through half the size of the FAT block
@@ -448,6 +448,7 @@ treeNode* FS::BFS(uint16_t blk)
 void FS::changeWorkingDir(uint16_t blk)
 {
     updateFat();
+    //writeWorkingDirToBlock(currentNode->entry->first_blk);
 
     uint8_t block[4096];
 
@@ -816,6 +817,7 @@ int FS::format()
     workingDir.clear();
 
     readInFatRoot();
+
     initTree();
     changeWorkingDir(0);
     // create DOTDOT entry for ROOT.
@@ -842,11 +844,10 @@ int FS::getFreeIndex()
 
 void FS::testDisk()
 {
-    for (int i = 0;i < 66;i++)
+    for (int i = 0;i < 20;i++)
     {
-        create(std::to_string(i));
+        std::cout << "FatIndex["<<i<<"]" ":" << fat[i] << std::endl;
     }
-    
 }
 
 int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16_t startFatIndex, int blockIndex)
@@ -865,7 +866,7 @@ int FS::writeBlocksFromString(std::string filepath, std::string contents, uint16
     for (int i = 0; i < contents.size(); i++)
     {
         // if file is bigger than size of 1 block (4096 bytes)
-        if (count > 4095)
+        if (count >= 4096)
         {
             // write block to file
             disk.write(fatIndex, block);
@@ -912,7 +913,7 @@ int FS::writeBlocksFromString(std::string contents)
     fatIndex = getFreeIndex();
     firstFatIndex = fatIndex;
     // add null termination to content
-    contents.push_back('\0');
+    //contents.push_back('\0');
 
     for (int i = 0; i < contents.size(); i++)
     {
@@ -938,7 +939,7 @@ int FS::writeBlocksFromString(std::string contents)
             // reset count so we can continue
             // writing the remaining file contents to the reset block
             count = 0;
-            
+
         }
         // add each char from file contents into block.
         block[count] = contents[i];
@@ -1094,9 +1095,13 @@ int FS::cat(std::string filepath)
 
     uint8_t block[4096];
     int fatIndex = first_blk;
+    //std::string sBlock;
     while (fatIndex != FAT_EOF && first_blk != 0)
     {
+        std::cout << std::endl << "Cat_Fatindex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
+        //sBlock = (char *)block;
+        //std::cout << sBlock << std::endl;
         for (int i = 0; i < 4096 && block[i] != '\0'; i++)
         {
             std::cout << block[i];
@@ -1398,9 +1403,14 @@ int FS::append(std::string filepath1, std::string filepath2)
     // Reads every block from sourcefile into string
     while (fatIndex != FAT_EOF)
     {
+        std::cout << std::endl << "Append_Fatindex: " << fatIndex << std::endl;
         disk.read(fatIndex, block);
-        sBlock = (char *)block;
-        contents.append(sBlock);
+        //sBlock = (char *)block;
+        for (int i = 0; i < 4096 && block[i] != '\0'; i++)
+        {
+            contents += (char)block[i];
+        }
+        //contents.append(sBlock);
         fatIndex = fat[fatIndex];
     }
     contents.push_back('\0');
